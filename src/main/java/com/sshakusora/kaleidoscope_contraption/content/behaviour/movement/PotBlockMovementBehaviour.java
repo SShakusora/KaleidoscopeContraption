@@ -3,15 +3,15 @@ package com.sshakusora.kaleidoscope_contraption.content.behaviour.movement;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.PotRecipe;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModParticles;
+import com.github.ysbbbbbb.kaleidoscopecookery.init.ModRecipes;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.registry.FoodBiteRegistry;
+import com.github.ysbbbbbb.kaleidoscopecookery.init.tag.TagMod;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
-import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
+import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.PotBlockMovingInteraction;
 import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccessor;
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
-import com.sshakusora.kaleidoscope_contraption.util.ContraptionDataUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.particles.ParticleTypes;
@@ -20,17 +20,18 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.ContainerHelper;
-import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.tuple.MutablePair;
-
-import java.util.Random;
 
 import static com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock.HAS_OIL;
 import static com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock.SHOW_OIL;
@@ -38,10 +39,12 @@ import static com.github.ysbbbbbb.kaleidoscopecookery.init.registry.FoodBiteRegi
 
 public class PotBlockMovementBehaviour implements MovementBehaviour {
 
+    // 时间常量（单位：tick）
     private static final int PUT_INGREDIENT_TIME = 60 * 20;
     private static final int TAKEOUT_TIME = 40 * 20;
     private static final int BURNT_TIME = 20 * 20;
 
+    // NBT键名
     private static final String INPUTS = "Inputs";
     private static final String CARRIER = "Carrier";
     private static final String RESULT = "Result";
@@ -50,7 +53,7 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
     private static final String STIR_FRY_COUNT = "StirFryCount";
     private static final String SEED = "Seed";
 
-    // IPot 状态常量
+    // IPot状态常量
     private static final int PUT_INGREDIENT = 0;
     private static final int COOKING = 1;
     private static final int FINISHED = 2;
@@ -63,370 +66,432 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
         }
 
         // 获取当前方块信息
-        BlockPos localPos = context.localPos;
-        AbstractContraptionEntity contraptionEntity = context.contraption.entity;
-        if (contraptionEntity == null) {
-            return;
-        }
-
-        StructureTemplate.StructureBlockInfo info = contraptionEntity.getContraption().getBlocks().get(localPos);
-        if (info == null) {
+        StructureTemplate.StructureBlockInfo info = context.contraption.getBlocks().get(context.localPos);
+        if (info == null || !(info.state().getBlock() instanceof PotBlock)) {
             return;
         }
 
         BlockState state = info.state();
-        if (!(state.getBlock() instanceof PotBlock)) {
-            return;
-        }
-
         CompoundTag nbt = info.nbt();
         if (nbt == null) {
             return;
         }
 
-        // 检查是否有油，没有油不执行tick
+        // 检查是否有油，没有油则不执行tick
         if (!state.getValue(HAS_OIL)) {
             return;
         }
 
         // 检查热源
-        if (!PotBlockMovingInteraction.hasHeatSource(contraptionEntity, localPos)) {
+        if (!hasHeatSource(context)) {
             return;
         }
 
-        int status = nbt.getInt(STATUS);
-        int currentTick = nbt.getInt(CURRENT_TICK);
+        // 执行tick逻辑
+        tickPot(context, state, nbt, info);
+    }
 
-        // 倒计时逻辑
+    /**
+     * 执行Pot的tick逻辑（参考PotBlockEntity.tick()）
+     */
+    private void tickPot(MovementContext context, BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
+        int currentTick = nbt.getInt(CURRENT_TICK);
+        int status = nbt.getInt(STATUS);
+        RandomSource random = context.world.random;
+
+        // 递减计时器
+        boolean statusChanged = false;
         if (currentTick > 0) {
             currentTick--;
-        }
 
-        // 模拟油炸声音（每20tick）
-        if (currentTick % 20 == 0) {
-            playFryingSound(contraptionEntity, localPos);
-        }
+            // 每5tick刷新一次（用于保存数据，不需要同步）
+            if (currentTick % 5 == 0) {
+                CompoundTag newNbt = nbt.copy();
+                newNbt.putInt(CURRENT_TICK, currentTick);
+                updateContraptionNbt(context, state, newNbt, false);
+            }
 
-        // 更新NBT中的currentTick，确保状态处理方法使用的是最新的值
-        CompoundTag workingNbt = nbt.copy();
-        workingNbt.putInt(CURRENT_TICK, currentTick);
-
-        // 状态处理 - 使用workingNbt确保状态变化基于最新的currentTick
-        boolean statusChanged = false;
-        if (status == PUT_INGREDIENT) {
-            statusChanged = tickPutIngredient(contraptionEntity, localPos, state, info, workingNbt, currentTick);
-        } else if (status == COOKING) {
-            statusChanged = tickCooking(contraptionEntity, localPos, state, info, workingNbt, currentTick);
-        } else if (status == FINISHED) {
-            statusChanged = tickFinished(contraptionEntity, localPos, state, info, workingNbt, currentTick);
-        } else if (status == BURNT) {
-            statusChanged = tickBurnt(contraptionEntity, localPos, state, info, workingNbt, currentTick);
-        }
-
-        // 如果状态发生了变化，重新获取最新的state和info（因为状态处理方法可能已经修改了它们）
-        BlockState finalState = state;
-        CompoundTag finalNbt = workingNbt;
-        if (statusChanged) {
-            StructureTemplate.StructureBlockInfo updatedInfo = contraptionEntity.getContraption().getBlocks().get(localPos);
-            if (updatedInfo != null) {
-                finalState = updatedInfo.state();
-                finalNbt = updatedInfo.nbt() != null ? updatedInfo.nbt() : workingNbt;
+            // 模拟油炸声音（每20tick）
+            if (currentTick % 20 == 0) {
+                playCookingSound(context);
             }
         }
 
-        // 同步到客户端：状态变化时同步
-        StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
-                info.pos(), finalState, finalNbt);
-        updateContraptionData(contraptionEntity, localPos, newInfo, statusChanged);
+        // 根据状态执行不同逻辑，statusChanged表示状态是否发生改变
+        int oldStatus = status;
+        switch (status) {
+            case PUT_INGREDIENT -> statusChanged = tickPutIngredient(context, state, nbt, info, currentTick, random);
+            case COOKING -> statusChanged = tickCooking(context, state, nbt, info, currentTick, random);
+            case FINISHED -> statusChanged = tickFinished(context, state, nbt, info, currentTick, random);
+            case BURNT -> statusChanged = tickBurnt(context, state, nbt, info, currentTick, random);
+        }
+
+        // 如果状态发生改变，需要同步到客户端
+        if (statusChanged && oldStatus != context.contraption.getBlocks().get(context.localPos).nbt().getInt(STATUS)) {
+            StructureTemplate.StructureBlockInfo newInfo = context.contraption.getBlocks().get(context.localPos);
+            updateContraptionNbt(context, newInfo.state(), newInfo.nbt(), true);
+        }
     }
 
     /**
-     * 放素材阶段tick
-     * @return 是否发生了状态变化
+     * 放食材阶段tick
+     * @return 状态是否发生改变
      */
-    private boolean tickPutIngredient(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                       BlockState state, StructureTemplate.StructureBlockInfo info,
-                                       CompoundTag nbt, int currentTick) {
-        // 播放粒子效果（每10tick）
-        if (currentTick % 10 == 0 && contraptionEntity.level() instanceof ServerLevel serverLevel) {
-            spawnCookingParticles(serverLevel, contraptionEntity, localPos);
+    private boolean tickPutIngredient(MovementContext context, BlockState state, CompoundTag nbt,
+                                       StructureTemplate.StructureBlockInfo info, int currentTick, RandomSource random) {
+        // 每10tick产生烹饪粒子效果
+        if (currentTick % 10 == 0 && context.world instanceof ServerLevel serverLevel) {
+            Vec3 globalPos = getGlobalPos(context);
+            serverLevel.sendParticles(ModParticles.COOKING.get(),
+                    globalPos.x + random.nextDouble() / 5 * (random.nextBoolean() ? 1 : -1),
+                    globalPos.y - 0.4 + random.nextDouble() / 3,
+                    globalPos.z + random.nextDouble() / 5 * (random.nextBoolean() ? 1 : -1),
+                    1, 0, 0, 0, 0);
         }
 
-        // 时间到了，检查是否有食材
+        // 时间到，自动开始烹饪（如果有食材）
         if (currentTick == 0) {
             if (isEmpty(nbt)) {
-                // 清空锅
-                resetPot(contraptionEntity, localPos, state, info, nbt);
-                playExtinguishSound(contraptionEntity, localPos);
+                // 没有食材，重置状态
+                resetPot(context, state, nbt, info);
+                playExtinguishSound(context);
+                spawnExtinguishParticles(context);
             } else {
-                // 自动切换到炒菜阶段
-                startCooking(contraptionEntity, localPos, state, info, nbt);
+                // 自动开始烹饪
+                startCooking(context, state, nbt, info);
             }
-            return true; // 状态发生了变化
+            return true; // 状态已改变
+        } else {
+            // 更新currentTick，不需要同步
+            CompoundTag newNbt = nbt.copy();
+            newNbt.putInt(CURRENT_TICK, currentTick);
+            updateContraptionNbt(context, state, newNbt, false);
+            return false; // 状态未改变
         }
-        return false; // 状态未变化
     }
 
     /**
-     * 炒菜阶段tick
-     * @return 是否发生了状态变化
+     * 烹饪阶段tick
+     * @return 状态是否发生改变
      */
-    private boolean tickCooking(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                 BlockState state, StructureTemplate.StructureBlockInfo info,
-                                 CompoundTag nbt, int currentTick) {
+    private boolean tickCooking(MovementContext context, BlockState state, CompoundTag nbt,
+                                 StructureTemplate.StructureBlockInfo info, int currentTick, RandomSource random) {
         if (currentTick == 0) {
-            // 炒菜完成，进入FINISHED状态
-            nbt.putInt(STATUS, FINISHED);
-            nbt.putInt(CURRENT_TICK, TAKEOUT_TIME);
+            // 烹饪完成
+            playExtinguishSound(context);
 
-            // 检查翻炒次数，如果还有剩余翻炒次数，变成迷之炒菜
-            int stirFryCount = nbt.getInt(STIR_FRY_COUNT);
+            CompoundTag newNbt = nbt.copy();
+            newNbt.putInt(STATUS, FINISHED);
+
+            // 检查翻炒次数，如果不足则变成迷之炒菜
+            int stirFryCount = newNbt.getInt(STIR_FRY_COUNT);
             if (stirFryCount > 0) {
-                nbt.put(RESULT, new ItemStack(FoodBiteRegistry.getItem(SUSPICIOUS_STIR_FRY)).serializeNBT());
-                nbt.putString(CARRIER, Ingredient.of(Items.BOWL).toJson().toString());
+                // 翻炒不足，变成迷之炒菜
+                newNbt.putString(CARRIER, Ingredient.of(Items.BOWL).toJson().toString());
+                newNbt.put(RESULT, new ItemStack(FoodBiteRegistry.getItem(SUSPICIOUS_STIR_FRY)).serializeNBT());
             }
 
-            // 隐藏油的显示 - 修改BlockState
-            BlockState newState = state.setValue(SHOW_OIL, false);
-            // 更新info以反映新的state
-            StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
-                    info.pos(), newState, nbt);
-            contraptionEntity.getContraption().getBlocks().put(localPos, newInfo);
+            newNbt.putInt(CURRENT_TICK, TAKEOUT_TIME);
 
-            playExtinguishSound(contraptionEntity, localPos);
-            return true; // 状态发生了变化
+            // 更新BlockState - 隐藏油
+            BlockState newState = state.setValue(SHOW_OIL, false);
+
+            updateContraptionNbt(context, newState, newNbt, true);
+            return true; // 状态已改变
+        } else {
+            // 更新currentTick，不需要同步
+            CompoundTag newNbt = nbt.copy();
+            newNbt.putInt(CURRENT_TICK, currentTick);
+            updateContraptionNbt(context, state, newNbt, false);
+            return false; // 状态未改变
         }
-        return false; // 状态未变化
     }
 
     /**
      * 完成阶段tick
-     * @return 是否发生了状态变化
+     * @return 状态是否发生改变
      */
-    private boolean tickFinished(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                  BlockState state, StructureTemplate.StructureBlockInfo info,
-                                  CompoundTag nbt, int currentTick) {
-        // 播放粒子效果（每10tick）
-        if (currentTick % 10 == 0 && contraptionEntity.level() instanceof ServerLevel serverLevel) {
-            spawnFinishedParticles(serverLevel, contraptionEntity, localPos);
+    private boolean tickFinished(MovementContext context, BlockState state, CompoundTag nbt,
+                                  StructureTemplate.StructureBlockInfo info, int currentTick, RandomSource random) {
+        // 每10tick产生完成粒子效果
+        if (currentTick % 10 == 0 && context.world instanceof ServerLevel serverLevel) {
+            Vec3 globalPos = getGlobalPos(context);
+            serverLevel.sendParticles(ModParticles.COOKING.get(),
+                    globalPos.x,
+                    globalPos.y - 0.4 + random.nextDouble() / 2,
+                    globalPos.z,
+                    1, 0, 0, 0, 0);
         }
 
-        // 时间到了，进入烧焦阶段
         if (currentTick == 0) {
-            nbt.putInt(STATUS, BURNT);
-            nbt.putInt(CURRENT_TICK, BURNT_TIME);
-
-            // 更新info以反映新的NBT状态，确保修改能持久化到下一个tick
-            StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
-                    info.pos(), state, nbt);
-            contraptionEntity.getContraption().getBlocks().put(localPos, newInfo);
-
-            return true; // 状态发生了变化
+            // 进入烧焦阶段
+            CompoundTag newNbt = nbt.copy();
+            newNbt.putInt(STATUS, BURNT);
+            newNbt.putInt(CURRENT_TICK, BURNT_TIME);
+            updateContraptionNbt(context, state, newNbt, true);
+            return true; // 状态已改变
+        } else {
+            // 更新currentTick，不需要同步
+            CompoundTag newNbt = nbt.copy();
+            newNbt.putInt(CURRENT_TICK, currentTick);
+            updateContraptionNbt(context, state, newNbt, false);
+            return false; // 状态未改变
         }
-        return false; // 状态未变化
     }
 
     /**
      * 烧焦阶段tick
-     * @return 是否发生了状态变化
+     * @return 状态是否发生改变
      */
-    private boolean tickBurnt(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                               BlockState state, StructureTemplate.StructureBlockInfo info,
-                               CompoundTag nbt, int currentTick) {
-        // 播放烟雾粒子
-        if (currentTick % 2 == 0 && contraptionEntity.level() instanceof ServerLevel serverLevel) {
-            int particleCount = 10 - currentTick / 5;
-            spawnSmokeParticles(serverLevel, contraptionEntity, localPos, particleCount);
+    private boolean tickBurnt(MovementContext context, BlockState state, CompoundTag nbt,
+                               StructureTemplate.StructureBlockInfo info, int currentTick, RandomSource random) {
+        int particleCount = 10 - currentTick / 5;
+
+        // 产生烟雾粒子
+        if (currentTick % 2 == 0 && context.world instanceof ServerLevel serverLevel) {
+            Vec3 globalPos = getGlobalPos(context);
+            serverLevel.sendParticles(ParticleTypes.SMOKE,
+                    globalPos.x + random.nextDouble() / 3 * (random.nextBoolean() ? 1 : -1),
+                    globalPos.y - 0.75 + random.nextDouble() / 3,
+                    globalPos.z + random.nextDouble() / 3 * (random.nextBoolean() ? 1 : -1),
+                    particleCount, 0, 0, 0, 0.05);
         }
 
-
-        nbt.putInt(CURRENT_TICK, currentTick);
-        StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
-                info.pos(), state, nbt);
-
-        // 时间到了，重置锅并掉落木炭
         if (currentTick == 0) {
-            resetPot(contraptionEntity, localPos, state, info, nbt);
-            playExtinguishSound(contraptionEntity, localPos);
+            // 完全烧焦，重置并掉落木炭
+            resetPot(context, state, nbt, info);
+            playExtinguishSound(context);
 
-            // 掉落木炭
-            if (contraptionEntity.level() instanceof ServerLevel serverLevel) {
-                spawnSmokeParticles(serverLevel, contraptionEntity, localPos, 8);
-                dropCharcoal(contraptionEntity, localPos);
+            if (context.world instanceof ServerLevel serverLevel) {
+                Vec3 globalPos = getGlobalPos(context);
+                serverLevel.sendParticles(ParticleTypes.SMOKE,
+                        globalPos.x + random.nextDouble() / 3 * (random.nextBoolean() ? 1 : -1),
+                        globalPos.y - 0.75 + random.nextDouble() / 3,
+                        globalPos.z + random.nextDouble() / 3 * (random.nextBoolean() ? 1 : -1),
+                        8, 0, 0, 0, 0.05);
+
+                // 掉落木炭
+                int count = 1 + random.nextInt(3);
+                Block.popResource(context.world, new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z),
+                        new ItemStack(Items.CHARCOAL, count));
             }
-
-            contraptionEntity.getContraption().getBlocks().put(localPos, newInfo);
-            return true; // 状态发生了变化
+            return true; // 状态已改变
+        } else {
+            // 更新currentTick，每25tick同步一次
+            CompoundTag newNbt = nbt.copy();
+            newNbt.putInt(CURRENT_TICK, currentTick);
+            boolean needSync = currentTick % 25 == 0;
+            updateContraptionNbt(context, state, newNbt, needSync);
+            return false; // 状态未改变
         }
-
-        // 客户端更新烧糊动画
-        if (currentTick % 25 == 0) {
-            contraptionEntity.getContraption().getBlocks().put(localPos, newInfo);
-            return true;
-        }
-        return false; // 状态未变化
     }
 
     /**
-     * 开始炒菜
+     * 开始烹饪
      */
-    private void startCooking(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                               BlockState state, StructureTemplate.StructureBlockInfo info, CompoundTag nbt) {
-        nbt.putInt(STATUS, COOKING);
+    private void startCooking(MovementContext context, BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
+        NonNullList<ItemStack> inputs = readInputs(nbt);
+        SimpleContainer container = getContainer(inputs);
 
-        StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
-                info.pos(), state, nbt);
-        updateContraptionData(contraptionEntity, localPos, newInfo, true);
+        // 匹配配方
+        var recipeOptional = context.world.getRecipeManager().getRecipeFor(ModRecipes.POT_RECIPE, container, context.world);
+
+        CompoundTag newNbt = nbt.copy();
+        newNbt.putInt(STATUS, COOKING);
+
+        recipeOptional.ifPresentOrElse(recipe -> {
+            // 如果合成表符合
+            newNbt.putString(CARRIER, recipe.carrier().toJson().toString());
+            newNbt.put(RESULT, recipe.assemble(container, context.world.registryAccess()).serializeNBT());
+            newNbt.putInt(CURRENT_TICK, recipe.time());
+            newNbt.putInt(STIR_FRY_COUNT, recipe.stirFryCount());
+        }, () -> {
+            // 不符合，进入迷之炒菜阶段
+            newNbt.putString(CARRIER, Ingredient.of(Items.BOWL).toJson().toString());
+            newNbt.put(RESULT, new ItemStack(FoodBiteRegistry.getItem(SUSPICIOUS_STIR_FRY)).serializeNBT());
+            newNbt.putInt(CURRENT_TICK, 10 * 20); // 迷之炒菜时间
+            newNbt.putInt(STIR_FRY_COUNT, 0); // 迷之炒菜不计翻炒次数
+        });
+
+        updateContraptionNbt(context, state, newNbt, true);
     }
 
     /**
-     * 重置锅
+     * 重置锅的状态
      */
-    private void resetPot(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                           BlockState state, StructureTemplate.StructureBlockInfo info, CompoundTag nbt) {
-        // 清空NBT数据
-        nbt.put(INPUTS, ContainerHelper.saveAllItems(new CompoundTag(), NonNullList.withSize(PotRecipe.RECIPES_SIZE, ItemStack.EMPTY)));
-        nbt.putString(CARRIER, Ingredient.EMPTY.toJson().toString());
-        nbt.put(RESULT, ItemStack.EMPTY.serializeNBT());
-        nbt.putInt(STATUS, PUT_INGREDIENT);
-        nbt.putInt(CURRENT_TICK, 0);
-        nbt.putInt(STIR_FRY_COUNT, 0);
-        nbt.putLong(SEED, System.currentTimeMillis());
+    private void resetPot(MovementContext context, BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
+        CompoundTag newNbt = new CompoundTag();
+        newNbt.put(INPUTS, ContainerHelper.saveAllItems(new CompoundTag(), NonNullList.withSize(PotRecipe.RECIPES_SIZE, ItemStack.EMPTY)));
+        newNbt.putString(CARRIER, Ingredient.EMPTY.toJson().toString());
+        newNbt.put(RESULT, ItemStack.EMPTY.serializeNBT());
+        newNbt.putInt(STATUS, PUT_INGREDIENT);
+        newNbt.putInt(CURRENT_TICK, 0);
+        newNbt.putInt(STIR_FRY_COUNT, 0);
+        newNbt.putLong(SEED, System.currentTimeMillis());
 
-        // 更新BlockState
-        BlockState newState = state.setValue(HAS_OIL, false).setValue(SHOW_OIL, false);
+        BlockState newState = state.setValue(HAS_OIL, false);
+
+        updateContraptionNbt(context, newState, newNbt, true);
+    }
+
+    /**
+     * 检查是否有热源
+     */
+    private boolean hasHeatSource(MovementContext context) {
+        Contraption contraption = context.contraption;
+        BlockPos belowLocalPos = context.localPos.below();
+
+        // 首先检查Contraption内部下方是否有方块
+        StructureTemplate.StructureBlockInfo belowInfo = contraption.getBlocks().get(belowLocalPos);
+        if (belowInfo != null) {
+            BlockState belowState = belowInfo.state();
+            // 检查是否有LIT属性
+            if (belowState.hasProperty(BlockStateProperties.LIT)) {
+                return belowState.getValue(BlockStateProperties.LIT);
+            }
+            // 检查是否在热源标签中
+            return belowState.is(TagMod.HEAT_SOURCE_BLOCKS_WITHOUT_LIT);
+        }
+
+        // Contraption内部没有下方方块，检查世界中Contraption实体下方的方块
+        if (context.contraption.entity == null) {
+            return false;
+        }
+
+        Vec3 globalPos = context.contraption.entity.toGlobalVector(Vec3.atCenterOf(context.localPos), 1.0f);
+        BlockPos worldPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
+        BlockPos worldBelowPos = worldPos.below();
+
+        BlockState worldBelowState = context.world.getBlockState(worldBelowPos);
+        if (worldBelowState.hasProperty(BlockStateProperties.LIT)) {
+            return worldBelowState.getValue(BlockStateProperties.LIT);
+        }
+        return worldBelowState.is(TagMod.HEAT_SOURCE_BLOCKS_WITHOUT_LIT);
+    }
+
+    /**
+     * 仅更新NBT数据（不更新BlockState）
+     * @param needSync 是否需要同步到客户端，减少不必要的网络包
+     */
+    private void updateContraptionNbt(MovementContext context, BlockState state, CompoundTag newNbt, boolean needSync) {
         StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
-                info.pos(), newState, nbt);
-        updateContraptionData(contraptionEntity, localPos, newInfo, true);
+                context.localPos, state, newNbt);
+
+        // 更新blocks
+        context.contraption.getBlocks().put(context.localPos, newInfo);
+
+        // 更新updateTags
+        ((ContraptionAccessor) context.contraption).getUpdateTags().put(context.localPos, newNbt);
+
+        // 更新actors列表
+        var actors = context.contraption.getActors();
+        for (int i = 0; i < actors.size(); i++) {
+            MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> actor = actors.get(i);
+            if (actor.getLeft().pos().equals(context.localPos)) {
+                actors.remove(i);
+                actors.add(i, MutablePair.of(newInfo, context));
+                break;
+            }
+        }
+
+        // 发送数据包同步到客户端
+        if (needSync && !context.world.isClientSide && context.contraption.entity != null) {
+            KCPacketHandler.sendToTracking(
+                    new KCContraptionChangedPacket(
+                            context.contraption.entity.getId(),
+                            context.localPos,
+                            state,
+                            newNbt
+                    ),
+                    context.contraption.entity
+            );
+        }
+    }
+
+    /**
+     * 播放烹饪音效
+     */
+    private void playCookingSound(MovementContext context) {
+        if (context.contraption.entity == null) return;
+        Vec3 globalPos = getGlobalPos(context);
+        BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
+        context.world.playSound(null, soundPos,
+                SoundEvents.FIRE_AMBIENT, SoundSource.BLOCKS,
+                0.5f + context.world.random.nextFloat() / 0.5f,
+                0.8f + context.world.random.nextFloat() / 0.5f);
+    }
+
+    /**
+     * 播放熄火音效
+     */
+    private void playExtinguishSound(MovementContext context) {
+        if (context.contraption.entity == null) return;
+        Vec3 globalPos = getGlobalPos(context);
+        BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
+        context.world.playSound(null, soundPos,
+                SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 1F,
+                (context.world.random.nextFloat() - context.world.random.nextFloat()) * 0.8F);
+    }
+
+    /**
+     * 产生熄火粒子效果
+     */
+    private void spawnExtinguishParticles(MovementContext context) {
+        if (!(context.world instanceof ServerLevel serverLevel)) return;
+        Vec3 globalPos = getGlobalPos(context);
+        RandomSource random = context.world.random;
+        serverLevel.sendParticles(ModParticles.COOKING.get(),
+                globalPos.x + random.nextDouble() / 3 * (random.nextBoolean() ? 1 : -1),
+                globalPos.y - 0.9 + random.nextDouble() / 3,
+                globalPos.z + random.nextDouble() / 3 * (random.nextBoolean() ? 1 : -1),
+                8, 0, 0, 0, 0.05);
+    }
+
+    /**
+     * 获取全局位置
+     */
+    private Vec3 getGlobalPos(MovementContext context) {
+        if (context.contraption.entity == null) {
+            return Vec3.atCenterOf(context.localPos);
+        }
+        return context.contraption.entity.toGlobalVector(Vec3.atCenterOf(context.localPos), 1.0f);
+    }
+
+    /**
+     * 读取原料列表
+     */
+    private NonNullList<ItemStack> readInputs(CompoundTag nbt) {
+        NonNullList<ItemStack> inputs = NonNullList.withSize(PotRecipe.RECIPES_SIZE, ItemStack.EMPTY);
+        if (nbt.contains(INPUTS, Tag.TAG_COMPOUND)) {
+            ContainerHelper.loadAllItems(nbt.getCompound(INPUTS), inputs);
+        }
+        return inputs;
+    }
+
+    /**
+     * 获取容器
+     */
+    private SimpleContainer getContainer(NonNullList<ItemStack> inputs) {
+        SimpleContainer container = new SimpleContainer(PotRecipe.RECIPES_SIZE);
+        for (int i = 0; i < inputs.size(); i++) {
+            ItemStack stack = inputs.get(i);
+            if (!stack.isEmpty()) {
+                container.setItem(i, stack);
+            }
+        }
+        return container;
     }
 
     /**
      * 检查锅是否为空
      */
     private boolean isEmpty(CompoundTag nbt) {
-        NonNullList<ItemStack> inputs = NonNullList.withSize(PotRecipe.RECIPES_SIZE, ItemStack.EMPTY);
-        if (nbt.contains(INPUTS, Tag.TAG_COMPOUND)) {
-            ContainerHelper.loadAllItems(nbt.getCompound(INPUTS), inputs);
-        }
+        NonNullList<ItemStack> inputs = readInputs(nbt);
         for (ItemStack stack : inputs) {
             if (!stack.isEmpty()) {
                 return false;
             }
         }
         return true;
-    }
-
-    /**
-     * 更新Contraption数据并同步到客户端
-     */
-    private void updateContraptionData(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                        StructureTemplate.StructureBlockInfo newInfo, boolean needSync) {
-        // 更新方块数据
-        contraptionEntity.getContraption().getBlocks().put(localPos, newInfo);
-        ((ContraptionAccessor) contraptionEntity.getContraption()).getUpdateTags().put(localPos, newInfo.nbt());
-
-        // 更新actor数据
-        var actors = contraptionEntity.getContraption().getActors();
-        for (int i = 0; i < actors.size(); i++) {
-            MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> actor = actors.get(i);
-            if (actor.getLeft().pos().equals(localPos)) {
-                ContraptionDataUtil.setContraptionActorData(contraptionEntity, i, newInfo, actor.getRight());
-                break;
-            }
-        }
-
-        // 发送网络包同步到客户端
-        if (needSync)
-            KCPacketHandler.sendToTracking(
-                    new KCContraptionChangedPacket(
-                            contraptionEntity.getId(),
-                            localPos,
-                            newInfo.state(),
-                            newInfo.nbt()
-                    ),
-                    contraptionEntity
-            );
-    }
-
-    /**
-     * 播放油炸声音
-     */
-    private void playFryingSound(AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
-        Vec3 globalPos = contraptionEntity.toGlobalVector(
-                Vec3.atCenterOf(localPos), 1.0f);
-        BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
-        contraptionEntity.level().playSound(null, soundPos,
-                SoundEvents.FIRE_AMBIENT, SoundSource.BLOCKS,
-                0.5f + contraptionEntity.level().random.nextFloat() / 0.5f,
-                0.8f + contraptionEntity.level().random.nextFloat() / 0.5f);
-    }
-
-    /**
-     * 播放熄灭声音
-     */
-    private void playExtinguishSound(AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
-        Vec3 globalPos = contraptionEntity.toGlobalVector(
-                Vec3.atCenterOf(localPos), 1.0f);
-        BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
-        contraptionEntity.level().playSound(null, soundPos,
-                SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 1F,
-                (contraptionEntity.level().random.nextFloat() - contraptionEntity.level().random.nextFloat()) * 0.8F);
-    }
-
-    /**
-     * 生成烹饪粒子
-     */
-    private void spawnCookingParticles(ServerLevel serverLevel, AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
-        Vec3 globalPos = contraptionEntity.toGlobalVector(
-                Vec3.atCenterOf(localPos), 1.0f);
-        Random random = new Random();
-        serverLevel.sendParticles(ModParticles.COOKING.get(),
-                globalPos.x + random.nextDouble() / 5 * (random.nextBoolean() ? 1 : -1),
-                globalPos.y + 0.1 + random.nextDouble() / 3,
-                globalPos.z + random.nextDouble() / 5 * (random.nextBoolean() ? 1 : -1),
-                1, 0, 0, 0, 0);
-    }
-
-    /**
-     * 生成完成阶段粒子
-     */
-    private void spawnFinishedParticles(ServerLevel serverLevel, AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
-        Vec3 globalPos = contraptionEntity.toGlobalVector(
-                Vec3.atCenterOf(localPos), 1.0f);
-        Random random = new Random();
-        serverLevel.sendParticles(ModParticles.COOKING.get(),
-                globalPos.x,
-                globalPos.y + 0.1 + random.nextDouble() / 2,
-                globalPos.z,
-                1, 0, 0, 0, 0);
-    }
-
-    /**
-     * 生成烟雾粒子
-     */
-    private void spawnSmokeParticles(ServerLevel serverLevel, AbstractContraptionEntity contraptionEntity,
-                                      BlockPos localPos, int count) {
-        Vec3 globalPos = contraptionEntity.toGlobalVector(
-                Vec3.atCenterOf(localPos), 1.0f);
-        Random random = new Random();
-        serverLevel.sendParticles(ParticleTypes.SMOKE,
-                globalPos.x + random.nextDouble() / 3 * (random.nextBoolean() ? 1 : -1),
-                globalPos.y + 0.25 + random.nextDouble() / 3,
-                globalPos.z + random.nextDouble() / 3 * (random.nextBoolean() ? 1 : -1),
-                count, 0, 0, 0, 0.05);
-    }
-
-    /**
-     * 掉落木炭
-     */
-    private void dropCharcoal(AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
-        Vec3 globalPos = contraptionEntity.toGlobalVector(
-                Vec3.atCenterOf(localPos), 1.0f);
-        int count = 1 + contraptionEntity.level().random.nextInt(3);
-        ItemStack charcoal = new ItemStack(Items.CHARCOAL, count);
-        ItemEntity itemEntity = new ItemEntity(
-                contraptionEntity.level(), globalPos.x, globalPos.y + 0.5, globalPos.z, charcoal);
-        itemEntity.setDefaultPickUpDelay();
-        contraptionEntity.level().addFreshEntity(itemEntity);
     }
 }
