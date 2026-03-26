@@ -76,5 +76,8 @@ public class KCInteractionBehaviours {
 
         // 注册沙威玛烤架的交互行为
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.SHAWARMA_SPIT.get(), new ShawarmaSpitBlockMovingInteraction());
+
+        // 注册切菜板的交互行为
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHOPPING_BOARD.get(), new ChoppingBoardBlockMovingInteraction());
     }
 }

@@ -2,6 +2,8 @@ package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.block.decoration.TableBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.food.FoodBiteBlock;
+import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.ChoppingBoardBlock;
+import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.PotRecipe;
 import com.github.ysbbbbbb.kaleidoscopecookery.util.CarpetColor;
 import com.github.ysbbbbbb.kaleidoscopecookery.util.ItemUtils;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
@@ -11,15 +13,18 @@ import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccesso
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.ItemTags;
+import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -56,6 +61,11 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
 
         //处理食物方块的交互
         if (handleFoodBlockPlacement(player, activeHand, localPos, contraptionEntity, info, itemInHand)) {
+            return true;
+        }
+
+        //处理切菜板的放置交互
+        if (handleChoppingBoardPlacement(player, activeHand, localPos, contraptionEntity, info, itemInHand)) {
             return true;
         }
 
@@ -273,6 +283,89 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
             }
 
             // 更新Contraption的bounds - 参考Contraption.addBlock()的实现
+            AABB updatedBounds = contraptionEntity.getContraption().bounds.minmax(new AABB(abovePos));
+            contraptionEntity.getContraption().bounds = updatedBounds;
+
+            // 通知客户端重新渲染Contraption（同步bounds）
+            KCPacketHandler.sendToTracking(
+                    new KCContraptionChangedPacket(
+                            contraptionEntity.getId(),
+                            abovePos,
+                            newInfo.state(),
+                            newInfo.nbt(),
+                            updatedBounds
+                    ),
+                    contraptionEntity
+            );
+
+            // 消耗玩家手持的一个物品
+            if (!player.isCreative()) {
+                itemInHand.shrink(1);
+            }
+
+            // 播放放置音效
+            Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(abovePos), 1.0f);
+            BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
+            contraptionEntity.level().playSound(null, soundPos, newState.getSoundType().getPlaceSound(),
+                    SoundSource.BLOCKS, 1.0F, 0.8F);
+        }
+
+        return true;
+    }
+
+    /**
+     * 处理手持ChoppingBoardBlock放置到桌子上方
+     */
+    private boolean handleChoppingBoardPlacement(Player player, InteractionHand activeHand, BlockPos localPos,
+                                                  AbstractContraptionEntity contraptionEntity, StructureTemplate.StructureBlockInfo info,
+                                                  ItemStack itemInHand) {
+        // 需要Shift+右键才能放置切菜板
+        if (!player.isShiftKeyDown()) {
+            return false;
+        }
+
+        BlockPos abovePos = localPos.above();
+
+        // 检查正上方是否已经有方块
+        StructureTemplate.StructureBlockInfo aboveInfo = contraptionEntity.getContraption().getBlocks().get(abovePos);
+        if (aboveInfo != null && !aboveInfo.state().isAir()) {
+            // 上方有方块，无法放置
+            return false;
+        }
+
+        // 获取手持的ChoppingBoardBlock
+        Block heldBlock = Block.byItem(itemInHand.getItem());
+        if (!(heldBlock instanceof ChoppingBoardBlock choppingBoardBlock)) {
+            return false;
+        }
+
+        // 在服务端执行放置逻辑
+        if (!contraptionEntity.level().isClientSide) {
+            // 创建新的ChoppingBoardBlock状态，朝向玩家
+            BlockState newState = choppingBoardBlock.defaultBlockState()
+                    .setValue(ChoppingBoardBlock.FACING, player.getDirection().getOpposite());
+
+            CompoundTag nbt = new CompoundTag();
+            nbt.putInt("MaxCutCount", 0);
+            nbt.putInt("CurrentCutCount", 0);
+            nbt.put("CurrentCutStack", ItemStack.EMPTY.serializeNBT());
+            nbt.put("ResultItem", ItemStack.EMPTY.serializeNBT());
+            // 写入id，防止重进存档时渲染的物品消失
+            nbt.putString("id", "kaleidoscope_cookery:chopping_board");
+
+            StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
+                    abovePos, newState, nbt);
+
+            // 使用setContraptionBlockData来更新方块数据
+            setContraptionBlockData(contraptionEntity, abovePos, newInfo);
+
+            // 注册交互行为到interactors地图，使新放置的方块可以被交互
+            MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(newState);
+            if (interactionBehaviour != null) {
+                contraptionEntity.getContraption().getInteractors().put(abovePos, interactionBehaviour);
+            }
+
+            // 更新Contraption的bounds
             AABB updatedBounds = contraptionEntity.getContraption().bounds.minmax(new AABB(abovePos));
             contraptionEntity.getContraption().bounds = updatedBounds;
 
