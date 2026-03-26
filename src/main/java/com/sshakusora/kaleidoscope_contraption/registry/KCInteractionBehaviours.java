@@ -3,10 +3,7 @@ package com.sshakusora.kaleidoscope_contraption.registry;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModBlocks;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.registry.FoodBiteRegistry;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.FoodBiteBlockMovingInteraction;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.PotBlockMovingInteraction;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.StoveBlockMovingInteraction;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.TableBlockMovingInteraction;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.*;
 
 public class KCInteractionBehaviours {
     public static void registerDefaults() {
@@ -73,5 +70,8 @@ public class KCInteractionBehaviours {
 
         // 注册炒锅的交互行为
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.POT.get(), new PotBlockMovingInteraction());
+
+        // 注册汤锅的交互行为
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STOCKPOT.get(), new StockpotBlockInteraction());
     }
 }

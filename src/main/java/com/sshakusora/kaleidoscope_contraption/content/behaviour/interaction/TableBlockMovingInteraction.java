@@ -1,4 +1,4 @@
-package com.sshakusora.kaleidoscope_contraption.content.behaviour;
+package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.block.decoration.TableBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.food.FoodBiteBlock;

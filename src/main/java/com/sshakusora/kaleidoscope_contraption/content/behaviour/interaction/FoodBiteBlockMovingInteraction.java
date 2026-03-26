@@ -1,4 +1,4 @@
-package com.sshakusora.kaleidoscope_contraption.content.behaviour;
+package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.block.decoration.TableBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.food.FoodBiteBlock;
@@ -178,7 +178,7 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
             // 掉落旧方块的LootItem
             dropLootItems(oldState, contraptionEntity, localPos);
 
-            // 从blocks中真正移除该位置（而不是替换为空气）
+            // 从blocks中真正移除该位置
             contraptionEntity.getContraption().getBlocks().remove(localPos);
 
             // 从interactors中移除

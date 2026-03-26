@@ -1,4 +1,4 @@
-package com.sshakusora.kaleidoscope_contraption.content.behaviour;
+package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.advancements.critereon.ModEventTriggerType;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock;

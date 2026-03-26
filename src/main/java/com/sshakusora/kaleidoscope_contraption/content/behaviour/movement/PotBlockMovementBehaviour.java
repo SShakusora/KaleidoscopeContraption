@@ -9,9 +9,7 @@ import com.github.ysbbbbbb.kaleidoscopecookery.init.tag.TagMod;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccessor;
-import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
-import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
+import com.sshakusora.kaleidoscope_contraption.util.ContraptionDataUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.particles.ParticleTypes;
@@ -31,7 +29,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.Vec3;
-import org.apache.commons.lang3.tuple.MutablePair;
 
 import static com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock.HAS_OIL;
 import static com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock.SHOW_OIL;
@@ -108,7 +105,7 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
             if (currentTick % 5 == 0) {
                 CompoundTag newNbt = nbt.copy();
                 newNbt.putInt(CURRENT_TICK, currentTick);
-                updateContraptionNbt(context, state, newNbt, false);
+                ContraptionDataUtil.updateContraptionData(context, state, newNbt, false);
             }
 
             // 模拟油炸声音（每20tick）
@@ -129,7 +126,7 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
         // 如果状态发生改变，需要同步到客户端
         if (statusChanged && oldStatus != context.contraption.getBlocks().get(context.localPos).nbt().getInt(STATUS)) {
             StructureTemplate.StructureBlockInfo newInfo = context.contraption.getBlocks().get(context.localPos);
-            updateContraptionNbt(context, newInfo.state(), newInfo.nbt(), true);
+            ContraptionDataUtil.updateContraptionData(context, newInfo.state(), newInfo.nbt(), true);
         }
     }
 
@@ -165,7 +162,7 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
             // 更新currentTick，不需要同步
             CompoundTag newNbt = nbt.copy();
             newNbt.putInt(CURRENT_TICK, currentTick);
-            updateContraptionNbt(context, state, newNbt, false);
+            ContraptionDataUtil.updateContraptionData(context, state, newNbt, false);
             return false; // 状态未改变
         }
     }
@@ -196,13 +193,13 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
             // 更新BlockState - 隐藏油
             BlockState newState = state.setValue(SHOW_OIL, false);
 
-            updateContraptionNbt(context, newState, newNbt, true);
+            ContraptionDataUtil.updateContraptionData(context, newState, newNbt, true);
             return true; // 状态已改变
         } else {
             // 更新currentTick，不需要同步
             CompoundTag newNbt = nbt.copy();
             newNbt.putInt(CURRENT_TICK, currentTick);
-            updateContraptionNbt(context, state, newNbt, false);
+            ContraptionDataUtil.updateContraptionData(context, state, newNbt, false);
             return false; // 状态未改变
         }
     }
@@ -228,13 +225,13 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
             CompoundTag newNbt = nbt.copy();
             newNbt.putInt(STATUS, BURNT);
             newNbt.putInt(CURRENT_TICK, BURNT_TIME);
-            updateContraptionNbt(context, state, newNbt, true);
+            ContraptionDataUtil.updateContraptionData(context, state, newNbt, true);
             return true; // 状态已改变
         } else {
             // 更新currentTick，不需要同步
             CompoundTag newNbt = nbt.copy();
             newNbt.putInt(CURRENT_TICK, currentTick);
-            updateContraptionNbt(context, state, newNbt, false);
+            ContraptionDataUtil.updateContraptionData(context, state, newNbt, false);
             return false; // 状态未改变
         }
     }
@@ -281,7 +278,7 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
             CompoundTag newNbt = nbt.copy();
             newNbt.putInt(CURRENT_TICK, currentTick);
             boolean needSync = currentTick % 25 == 0;
-            updateContraptionNbt(context, state, newNbt, needSync);
+            ContraptionDataUtil.updateContraptionData(context, state, newNbt, needSync);
             return false; // 状态未改变
         }
     }
@@ -313,7 +310,7 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
             newNbt.putInt(STIR_FRY_COUNT, 0); // 迷之炒菜不计翻炒次数
         });
 
-        updateContraptionNbt(context, state, newNbt, true);
+        ContraptionDataUtil.updateContraptionData(context, state, newNbt, true);
     }
 
     /**
@@ -331,7 +328,7 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
 
         BlockState newState = state.setValue(HAS_OIL, false);
 
-        updateContraptionNbt(context, newState, newNbt, true);
+        ContraptionDataUtil.updateContraptionData(context, newState, newNbt, true);
     }
 
     /**
@@ -367,45 +364,6 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
             return worldBelowState.getValue(BlockStateProperties.LIT);
         }
         return worldBelowState.is(TagMod.HEAT_SOURCE_BLOCKS_WITHOUT_LIT);
-    }
-
-    /**
-     * 仅更新NBT数据（不更新BlockState）
-     * @param needSync 是否需要同步到客户端，减少不必要的网络包
-     */
-    private void updateContraptionNbt(MovementContext context, BlockState state, CompoundTag newNbt, boolean needSync) {
-        StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
-                context.localPos, state, newNbt);
-
-        // 更新blocks
-        context.contraption.getBlocks().put(context.localPos, newInfo);
-
-        // 更新updateTags
-        ((ContraptionAccessor) context.contraption).getUpdateTags().put(context.localPos, newNbt);
-
-        // 更新actors列表
-        var actors = context.contraption.getActors();
-        for (int i = 0; i < actors.size(); i++) {
-            MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> actor = actors.get(i);
-            if (actor.getLeft().pos().equals(context.localPos)) {
-                actors.remove(i);
-                actors.add(i, MutablePair.of(newInfo, context));
-                break;
-            }
-        }
-
-        // 发送数据包同步到客户端
-        if (needSync && !context.world.isClientSide && context.contraption.entity != null) {
-            KCPacketHandler.sendToTracking(
-                    new KCContraptionChangedPacket(
-                            context.contraption.entity.getId(),
-                            context.localPos,
-                            state,
-                            newNbt
-                    ),
-                    context.contraption.entity
-            );
-        }
     }
 
     /**

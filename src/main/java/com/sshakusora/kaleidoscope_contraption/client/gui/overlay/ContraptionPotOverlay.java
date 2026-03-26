@@ -2,7 +2,7 @@ package com.sshakusora.kaleidoscope_contraption.client.gui.overlay;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.PotBlockMovingInteraction;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.PotBlockMovingInteraction;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;

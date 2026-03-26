@@ -1,9 +1,12 @@
-package com.sshakusora.kaleidoscope_contraption.content.behaviour;
+package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock;
+import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.StockpotBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.StoveBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.PotRecipe;
+import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.StockpotRecipe;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModItems;
+import com.github.ysbbbbbb.kaleidoscopecookery.init.ModSoupBases;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.tag.TagMod;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
@@ -53,6 +56,11 @@ public class StoveBlockMovingInteraction extends MovingInteractionBehaviour {
 
         // 处理放置PotBlock
         if (handlePotBlockPlacement(player, activeHand, localPos, contraptionEntity, info, itemInHand)) {
+            return true;
+        }
+
+        // 处理放置StockPotBlock
+        if (handleStockpotBlockPlacement(player, activeHand, localPos, contraptionEntity, info, itemInHand)) {
             return true;
         }
 
@@ -179,6 +187,111 @@ public class StoveBlockMovingInteraction extends MovingInteractionBehaviour {
             nbt.putLong("Seed", System.currentTimeMillis());
             // 写入id，防止重进存档时渲染的物品消失
             nbt.putString("id", "kaleidoscope_cookery:pot");
+
+            StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
+                    abovePos, newState, nbt);
+
+            // 使用setContraptionBlockData来更新方块数据
+            setContraptionBlockData(contraptionEntity, abovePos, newInfo);
+
+            // 注册交互行为到interactors
+            MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(newState);
+            if (interactionBehaviour != null) {
+                contraptionEntity.getContraption().getInteractors().put(abovePos, interactionBehaviour);
+            }
+
+            // 注册MovementBehaviour到actors列表，使tick逻辑可以执行
+            MovementBehaviour movementBehaviour = MovementBehaviour.REGISTRY.get(newState);
+            if (movementBehaviour != null) {
+                var actors = contraptionEntity.getContraption().getActors();
+                // 检查是否已存在该位置的actor
+                boolean exists = false;
+                for (var actor : actors) {
+                    if (actor.getLeft().pos().equals(abovePos)) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    MovementContext context = new MovementContext(
+                            contraptionEntity.level(), newInfo, contraptionEntity.getContraption());
+                    actors.add(MutablePair.of(newInfo, context));
+                }
+            }
+
+            // 更新Contraption的bounds - 参考Contraption.addBlock()的实现
+            AABB updatedBounds = contraptionEntity.getContraption().bounds.minmax(new AABB(abovePos));
+            contraptionEntity.getContraption().bounds = updatedBounds;
+
+            // 通知客户端重新渲染Contraption（同步bounds）
+            KCPacketHandler.sendToTracking(
+                    new KCContraptionChangedPacket(
+                            contraptionEntity.getId(),
+                            abovePos,
+                            newInfo.state(),
+                            newInfo.nbt(),
+                            updatedBounds
+                    ),
+                    contraptionEntity
+            );
+
+            // 消耗玩家手持的一个物品
+            if (!player.isCreative()) {
+                itemInHand.shrink(1);
+            }
+
+            // 播放放置音效
+            Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(abovePos), 1.0f);
+            BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
+            contraptionEntity.level().playSound(null, soundPos, newState.getSoundType().getPlaceSound(),
+                    SoundSource.BLOCKS, 1.0F, 0.8F);
+        }
+
+        return true;
+    }
+
+    /**
+     * 处理手持StockpotBlock放置到炉灶上方
+     */
+    private boolean handleStockpotBlockPlacement(Player player, InteractionHand activeHand, BlockPos localPos,
+                                                  AbstractContraptionEntity contraptionEntity, StructureTemplate.StructureBlockInfo info,
+                                                  ItemStack itemInHand) {
+        // 获取手持的Block
+        Block heldBlock = Block.byItem(itemInHand.getItem());
+        if (!(heldBlock instanceof StockpotBlock stockpotBlock)) {
+            return false;
+        }
+
+        BlockPos abovePos = localPos.above();
+
+        // 检查正上方是否已经有方块
+        StructureTemplate.StructureBlockInfo aboveInfo = contraptionEntity.getContraption().getBlocks().get(abovePos);
+        if (aboveInfo != null && !aboveInfo.state().isAir()) {
+            // 上方有方块，无法放置
+            return false;
+        }
+
+        // 在服务端执行放置逻辑
+        if (!contraptionEntity.level().isClientSide) {
+            // 创建新的StockpotBlock状态
+            BlockState newState = stockpotBlock.defaultBlockState()
+                    .setValue(StockpotBlock.FACING, player.getDirection().getOpposite());
+
+            // 检查炉灶上方是否需要基座（炉灶是完整方块，不需要基座）
+            newState = newState.setValue(StockpotBlock.HAS_BASE, false);
+
+            // 初始化NBT数据 - StockpotBlockMovementBehaviour需要NBT来执行tick逻辑
+            CompoundTag nbt = new CompoundTag();
+            nbt.put("Inputs", ContainerHelper.saveAllItems(new CompoundTag(),
+                    NonNullList.withSize(StockpotRecipe.RECIPES_SIZE, ItemStack.EMPTY)));
+            nbt.putString("RecipeId", "kaleidoscope_cookery:stockpot/empty");
+            nbt.putString("SoupBaseId", ModSoupBases.WATER.toString());
+            nbt.put("Result", ItemStack.EMPTY.serializeNBT());
+            nbt.putInt("Status", 0); // PUT_SOUP_BASE
+            nbt.putInt("CurrentTick", -1);
+            nbt.putInt("TakeoutCount", 0);
+            // 写入id，防止重进存档时渲染的物品消失
+            nbt.putString("id", "kaleidoscope_cookery:stockpot");
 
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                     abovePos, newState, nbt);
