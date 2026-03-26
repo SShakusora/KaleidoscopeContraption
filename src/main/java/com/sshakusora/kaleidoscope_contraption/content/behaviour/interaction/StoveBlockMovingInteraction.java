@@ -1,5 +1,6 @@
 package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 
+import com.github.ysbbbbbb.kaleidoscopecookery.advancements.critereon.ModEventTriggerType;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.StockpotBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.StoveBlock;
@@ -7,6 +8,7 @@ import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.PotRecipe;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.StockpotRecipe;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModItems;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModSoupBases;
+import com.github.ysbbbbbb.kaleidoscopecookery.init.ModTrigger;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.tag.TagMod;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
@@ -56,11 +58,15 @@ public class StoveBlockMovingInteraction extends MovingInteractionBehaviour {
 
         // 处理放置PotBlock
         if (handlePotBlockPlacement(player, activeHand, localPos, contraptionEntity, info, itemInHand)) {
+            if (state.getValue(BlockStateProperties.LIT))
+                ModTrigger.EVENT.trigger(player, ModEventTriggerType.PLACE_POT_ON_HEAT_SOURCE);
             return true;
         }
 
         // 处理放置StockPotBlock
         if (handleStockpotBlockPlacement(player, activeHand, localPos, contraptionEntity, info, itemInHand)) {
+            if (state.getValue(BlockStateProperties.LIT))
+                ModTrigger.EVENT.trigger(player, ModEventTriggerType.PLACE_STOCKPOT_ON_HEAT_SOURCE);
             return true;
         }
 

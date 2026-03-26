@@ -287,6 +287,11 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
                 updateContraptionData(contraptionEntity, localPos, newInfo);
             }
 
+            if (hasHeatSource(contraptionEntity, localPos)) {
+                player.hurt(contraptionEntity.level().damageSources().inFire(), 1);
+                ModTrigger.EVENT.trigger(player, ModEventTriggerType.HURT_WHEN_TAKEOUT_FROM_POT);
+            }
+
             return true;
         }
         return false;
@@ -420,8 +425,13 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
             }
             return true;
         } else {
+            if (hasHeatSource(contraptionEntity, localPos)) {
+                player.hurt(contraptionEntity.level().damageSources().inFire(), 1);
+                ModTrigger.EVENT.trigger(player, ModEventTriggerType.HURT_WHEN_TAKEOUT_FROM_POT);
+            }
             sendActionBarMessage(player, "need_kitchen_shovel");
-            return false;
+            // 选择返回true，以便触发C2S，伤害得以生效
+            return true;
         }
     }
 
@@ -444,7 +454,13 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
         }
         // 没有锅铲时才会触发提示
         if (!mainHandItem.is(TagMod.KITCHEN_SHOVEL)) {
+            if (hasHeatSource(contraptionEntity, localPos)) {
+                player.hurt(contraptionEntity.level().damageSources().inFire(), 1);
+                ModTrigger.EVENT.trigger(player, ModEventTriggerType.HURT_WHEN_TAKEOUT_FROM_POT);
+            }
             sendActionBarMessage(player, "need_carrier", carrierName);
+            // 选择返回true，以便触发C2S，伤害得以生效
+            return true;
         }
         return false;
     }

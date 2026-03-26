@@ -193,6 +193,20 @@ public class KCContraptionChangedPacket {
                     // BlockState发生变化：需要重建结构以更新渲染
                     LOGGER.info("[KCContraption] BlockState changed at pos {}, invalidating structure", packet.localPos);
                     contraptionEntity.getContraption().invalidateClientContraptionStructure();
+
+                    // 同时更新ClientContraption中的BlockEntity的BlockState
+                    var clientContraption = contraptionEntity.getContraption().getOrCreateClientContraptionLazy();
+                    var blockEntity = clientContraption.getBlockEntity(packet.localPos);
+                    if (blockEntity != null) {
+                        LOGGER.info("[KCContraption] Updating BlockState for BlockEntity at pos {}: old={}, new={}",
+                                packet.localPos, blockEntity.getBlockState(), packet.newState);
+                        // 更新BlockEntity的BlockState
+                        blockEntity.setBlockState(packet.newState);
+                        // 同时更新NBT
+                        if (packet.newNbt != null) {
+                            blockEntity.load(packet.newNbt);
+                        }
+                    }
                 } else {
                     // 只有NBT变化：更新BlockEntity数据并刷新视觉
                     var clientContraption = contraptionEntity.getContraption().getOrCreateClientContraptionLazy();

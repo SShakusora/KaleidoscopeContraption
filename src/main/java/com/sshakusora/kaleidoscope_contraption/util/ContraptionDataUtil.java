@@ -14,8 +14,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 public class ContraptionDataUtil {
     public static void setContraptionActorData(AbstractContraptionEntity contraptionEntity, int index,
                                          StructureTemplate.StructureBlockInfo info, MovementContext ctx) {
-        contraptionEntity.getContraption().getActors().remove(index);
-        contraptionEntity.getContraption().getActors().add(index, MutablePair.of(info, ctx));
+        contraptionEntity.getContraption().getActors().set(index, MutablePair.of(info, ctx));
         if (contraptionEntity.level().isClientSide)
             contraptionEntity.getContraption()
                     .invalidateClientContraptionChildren();
@@ -37,7 +36,7 @@ public class ContraptionDataUtil {
 
     /**
      * 更新Contraption数据
-     * @param needSync 是否需要同步到客户端，减少不必要的网络包
+     * @param needSync 是否需要同步到客户端
      */
     public static void updateContraptionData(MovementContext context, BlockState state, CompoundTag newNbt, boolean needSync) {
         StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
