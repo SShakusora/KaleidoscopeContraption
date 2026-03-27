@@ -39,6 +39,8 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
 
     @Override
     public boolean handlePlayerInteraction(Player player, InteractionHand activeHand, BlockPos localPos, AbstractContraptionEntity contraptionEntity) {
+        if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) return false;
+
         StructureTemplate.StructureBlockInfo info = contraptionEntity.getContraption().getBlocks().get(localPos);
         if (info == null) {
             return true;
@@ -65,8 +67,6 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
         if (handleChoppingBoardPlacement(player, activeHand, localPos, contraptionEntity, info, itemInHand)) {
             return true;
         }
-
-        if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) return false;
 
         // 处理物品放置/取出交互
         return handleItemInteraction(player, activeHand, localPos, contraptionEntity, state, info, itemInHand);

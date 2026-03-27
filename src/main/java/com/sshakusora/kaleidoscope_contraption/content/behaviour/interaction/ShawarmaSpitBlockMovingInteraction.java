@@ -258,17 +258,17 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
 
             // 通知客户端重新渲染Contraption
             BlockState airState = Blocks.AIR.defaultBlockState();
-            StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
-                    lowerPos, airState, null);
 
-            setContraptionBlockData(contraptionEntity, lowerPos, newInfo);
-            ((ContraptionAccessor) contraptionEntity.getContraption()).getUpdateTags().put(lowerPos, newInfo.nbt());
-
-            // 同样处理上层
-            StructureTemplate.StructureBlockInfo upperInfo = new StructureTemplate.StructureBlockInfo(
-                    upperPos, airState, null);
-            setContraptionBlockData(contraptionEntity, upperPos, upperInfo);
-            ((ContraptionAccessor) contraptionEntity.getContraption()).getUpdateTags().put(upperPos, upperInfo.nbt());
+            KCPacketHandler.sendToTracking(
+                    new KCContraptionChangedPacket(
+                            contraptionEntity.getId(),
+                            upperPos,
+                            airState,
+                            null,
+                            updatedBounds
+                    ),
+                    contraptionEntity
+            );
 
             KCPacketHandler.sendToTracking(
                     new KCContraptionChangedPacket(

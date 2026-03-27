@@ -551,11 +551,6 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
             // 通知客户端重新渲染Contraption（同步bounds）
             // 使用空气状态表示该位置已被移除
             BlockState airState = Blocks.AIR.defaultBlockState();
-            StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
-                    localPos, airState, null);
-
-            setContraptionBlockData(contraptionEntity, localPos, newInfo);
-            ((ContraptionAccessor) contraptionEntity.getContraption()).getUpdateTags().put(localPos, newInfo.nbt());
 
             KCPacketHandler.sendToTracking(
                     new KCContraptionChangedPacket(

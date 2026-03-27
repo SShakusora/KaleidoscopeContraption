@@ -2,6 +2,7 @@ package com.sshakusora.kaleidoscope_contraption.client.input;
 
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.sshakusora.kaleidoscope_contraption.KaleidoscopeContraption;
+import com.sshakusora.kaleidoscope_contraption.client.init.ClientSetupEvent;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
 import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockPacket;
 import net.minecraft.client.Minecraft;
@@ -24,7 +25,7 @@ public class KeyInputHandler {
     @SubscribeEvent
     public static void onKeyInput(InputEvent.Key event) {
         // 检查是否是移除方块键被按下
-        if (KCKeyBindings.REMOVE_BLOCK_KEY.consumeClick()) {
+        if (ClientSetupEvent.REMOVE_BLOCK_KEY.consumeClick()) {
             handleRemoveBlockKey();
         }
     }

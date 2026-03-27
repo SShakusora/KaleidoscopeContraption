@@ -79,5 +79,8 @@ public class KCInteractionBehaviours {
 
         // 注册切菜板的交互行为
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHOPPING_BOARD.get(), new ChoppingBoardBlockMovingInteraction());
+
+        // 注册蒸笼的交互行为
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STEAMER.get(), new SteamerBlockMovingInteraction());
     }
 }

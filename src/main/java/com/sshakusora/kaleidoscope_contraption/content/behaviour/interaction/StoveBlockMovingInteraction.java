@@ -2,6 +2,7 @@ package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.advancements.critereon.ModEventTriggerType;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock;
+import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.SteamerBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.StockpotBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.StoveBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.PotRecipe;
@@ -71,6 +72,12 @@ public class StoveBlockMovingInteraction extends MovingInteractionBehaviour {
                     && !KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
                 if (state.getValue(BlockStateProperties.LIT))
                     ModTrigger.EVENT.trigger(player, ModEventTriggerType.PLACE_STOCKPOT_ON_HEAT_SOURCE);
+                return true;
+            }
+
+            // 处理放置SteamerBlock
+            if (handleSteamerBlockPlacement(player, activeHand, localPos, contraptionEntity, info, itemInHand)
+                    && !KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
                 return true;
             }
         }
@@ -303,6 +310,137 @@ public class StoveBlockMovingInteraction extends MovingInteractionBehaviour {
             nbt.putInt("TakeoutCount", 0);
             // 写入id，防止重进存档时渲染的物品消失
             nbt.putString("id", "kaleidoscope_cookery:stockpot");
+
+            StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
+                    abovePos, newState, nbt);
+
+            // 使用setContraptionBlockData来更新方块数据
+            setContraptionBlockData(contraptionEntity, abovePos, newInfo);
+
+            // 注册交互行为到interactors
+            MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(newState);
+            if (interactionBehaviour != null) {
+                contraptionEntity.getContraption().getInteractors().put(abovePos, interactionBehaviour);
+            }
+
+            // 注册MovementBehaviour到actors列表，使tick逻辑可以执行
+            MovementBehaviour movementBehaviour = MovementBehaviour.REGISTRY.get(newState);
+            if (movementBehaviour != null) {
+                var actors = contraptionEntity.getContraption().getActors();
+                // 检查是否已存在该位置的actor
+                boolean exists = false;
+                for (var actor : actors) {
+                    if (actor.getLeft().pos().equals(abovePos)) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    MovementContext context = new MovementContext(
+                            contraptionEntity.level(), newInfo, contraptionEntity.getContraption());
+                    actors.add(MutablePair.of(newInfo, context));
+                }
+            }
+
+            // 更新Contraption的bounds - 参考Contraption.addBlock()的实现
+            AABB updatedBounds = contraptionEntity.getContraption().bounds.minmax(new AABB(abovePos));
+            contraptionEntity.getContraption().bounds = updatedBounds;
+
+            // 通知客户端重新渲染Contraption（同步bounds）
+            KCPacketHandler.sendToTracking(
+                    new KCContraptionChangedPacket(
+                            contraptionEntity.getId(),
+                            abovePos,
+                            newInfo.state(),
+                            newInfo.nbt(),
+                            updatedBounds
+                    ),
+                    contraptionEntity
+            );
+
+            // 消耗玩家手持的一个物品
+            if (!player.isCreative()) {
+                itemInHand.shrink(1);
+            }
+
+            // 播放放置音效
+            Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(abovePos), 1.0f);
+            BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
+            contraptionEntity.level().playSound(null, soundPos, newState.getSoundType().getPlaceSound(),
+                    SoundSource.BLOCKS, 1.0F, 0.8F);
+        }
+
+        return true;
+    }
+
+    /**
+     * 处理手持SteamerBlock放置到炉灶上方
+     */
+    private boolean handleSteamerBlockPlacement(Player player, InteractionHand activeHand, BlockPos localPos,
+                                                 AbstractContraptionEntity contraptionEntity, StructureTemplate.StructureBlockInfo info,
+                                                 ItemStack itemInHand) {
+        // 获取手持的Block
+        Block heldBlock = Block.byItem(itemInHand.getItem());
+        if (!(heldBlock instanceof SteamerBlock steamerBlock)) {
+            return false;
+        }
+
+        BlockPos abovePos = localPos.above();
+
+        // 检查正上方是否已经有方块
+        StructureTemplate.StructureBlockInfo aboveInfo = contraptionEntity.getContraption().getBlocks().get(abovePos);
+        if (aboveInfo != null && !aboveInfo.state().isAir()) {
+            // 上方有方块，无法放置
+            return false;
+        }
+
+        // 在服务端执行放置逻辑
+        if (!contraptionEntity.level().isClientSide) {
+            // 创建新的SteamerBlock状态
+            BlockState newState = steamerBlock.defaultBlockState()
+                    .setValue(SteamerBlock.FACING, player.getDirection().getOpposite())
+                    .setValue(SteamerBlock.HALF, true)  // 初始为单层
+                    .setValue(SteamerBlock.HAS_LID, false)
+                    .setValue(SteamerBlock.HAS_BASE, false)  // 炉灶是完整方块，不需要基座
+                    .setValue(SteamerBlock.WATERLOGGED, false);
+
+            // 从手持物品中读取NBT数据（如果有）
+            CompoundTag nbt = new CompoundTag();
+            CompoundTag handData = net.minecraft.world.item.BlockItem.getBlockEntityData(itemInHand);
+            if (handData != null) {
+                // 手持物品有数据，读取物品和进度
+                NonNullList<ItemStack> handItems = NonNullList.withSize(4, ItemStack.EMPTY);
+                ContainerHelper.loadAllItems(handData, handItems);
+                int[] handProgress = handData.getIntArray("CookingProgress");
+                int[] handTime = handData.getIntArray("CookingTime");
+
+                // 保存到NBT（单层只有0-3槽位）
+                NonNullList<ItemStack> items = NonNullList.withSize(8, ItemStack.EMPTY);
+                for (int i = 0; i < 4; i++) {
+                    items.set(i, handItems.get(i));
+                }
+                ContainerHelper.saveAllItems(nbt, items, true);
+
+                int[] progress = new int[8];
+                int[] time = new int[8];
+                if (handProgress.length >= 4) {
+                    System.arraycopy(handProgress, 0, progress, 0, 4);
+                }
+                if (handTime.length >= 4) {
+                    System.arraycopy(handTime, 0, time, 0, 4);
+                }
+                nbt.putIntArray("CookingProgress", progress);
+                nbt.putIntArray("CookingTime", time);
+            } else {
+                // 空手物品，初始化空NBT
+                NonNullList<ItemStack> items = NonNullList.withSize(8, ItemStack.EMPTY);
+                ContainerHelper.saveAllItems(nbt, items, true);
+                nbt.putIntArray("CookingProgress", new int[8]);
+                nbt.putIntArray("CookingTime", new int[8]);
+            }
+
+            // 写入id，防止重进存档时渲染的物品消失
+            nbt.putString("id", "kaleidoscope_cookery:steamer");
 
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                     abovePos, newState, nbt);

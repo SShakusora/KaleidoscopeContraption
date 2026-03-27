@@ -5,6 +5,7 @@ import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
+import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccessor;
 import net.createmod.catnip.nbt.NBTHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -111,6 +112,7 @@ public class KCContraptionChangedPacket {
                 contraptionEntity.getContraption().getBlocks().remove(packet.localPos);
                 contraptionEntity.getContraption().getInteractors().remove(packet.localPos);
                 contraptionEntity.getContraption().getActors().removeIf(actor -> actor.getLeft().pos().equals(packet.localPos));
+                ((ContraptionAccessor) contraptionEntity.getContraption()).getUpdateTags().remove(packet.localPos);
                 LOGGER.info("[KCContraption] Block removed at {}", packet.localPos);
             } else {
                 // 更新方块数据（包含NBT）
