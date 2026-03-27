@@ -5,11 +5,8 @@ import com.github.ysbbbbbb.kaleidoscopecookery.init.ModBlocks;
 import com.github.ysbbbbbb.kaleidoscopecookery.util.ItemUtils;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
-import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccessor;
-import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
-import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
 import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
-import com.sshakusora.kaleidoscope_contraption.util.ContraptionBoundsUtil;
+import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundEvents;
@@ -20,12 +17,10 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehaviour {
@@ -235,20 +230,11 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
             // 先掉落物品（如果有）
             dropCookItems(contraptionEntity, lowerPos);
 
-            // 从blocks中移除下层和上层
-            contraptionEntity.getContraption().getBlocks().remove(lowerPos);
-            contraptionEntity.getContraption().getBlocks().remove(upperPos);
-
-            // 从interactors中移除
-            contraptionEntity.getContraption().getInteractors().remove(lowerPos);
-            contraptionEntity.getContraption().getInteractors().remove(upperPos);
-
-            // 从actors中移除
-            contraptionEntity.getContraption().getActors().removeIf(actor ->
-                    actor.getLeft().pos().equals(lowerPos) || actor.getLeft().pos().equals(upperPos));
+            // 从Contraption中移除下层和上层
+            ContraptionInteractionUtil.removeBlocksFromContraption(contraptionEntity, lowerPos, upperPos);
 
             // 更新Contraption的bounds
-            AABB updatedBounds = ContraptionBoundsUtil.recalculateBounds(contraptionEntity.getContraption());
+            var updatedBounds = ContraptionInteractionUtil.recalculateBounds(contraptionEntity);
 
             // 掉落ShawarmaSpitBlock物品给玩家
             ItemStack spitItem = new ItemStack(ModBlocks.SHAWARMA_SPIT.get());
@@ -257,35 +243,10 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
             }
 
             // 通知客户端重新渲染Contraption
-            BlockState airState = Blocks.AIR.defaultBlockState();
-
-            KCPacketHandler.sendToTracking(
-                    new KCContraptionChangedPacket(
-                            contraptionEntity.getId(),
-                            upperPos,
-                            airState,
-                            null,
-                            updatedBounds
-                    ),
-                    contraptionEntity
-            );
-
-            KCPacketHandler.sendToTracking(
-                    new KCContraptionChangedPacket(
-                            contraptionEntity.getId(),
-                            lowerPos,
-                            airState,
-                            null,
-                            updatedBounds
-                    ),
-                    contraptionEntity
-            );
+            ContraptionInteractionUtil.syncBlockRemoval(contraptionEntity, updatedBounds, upperPos, lowerPos);
 
             // 播放破坏音效
-            Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
-            BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
-            contraptionEntity.level().playSound(null, soundPos, blockInfo.state().getSoundType().getBreakSound(),
-                    SoundSource.BLOCKS, 1.0F, 0.8F);
+            ContraptionInteractionUtil.playBreakSound(contraptionEntity, localPos, blockInfo.state());
         }
 
         return true;
@@ -339,30 +300,6 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
      */
     private void updateContraptionData(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
                                        StructureTemplate.StructureBlockInfo newInfo) {
-        setContraptionBlockData(contraptionEntity, localPos, newInfo);
-        ((ContraptionAccessor) contraptionEntity.getContraption()).getUpdateTags().put(localPos, newInfo.nbt());
-
-        // 查找并更新actor数据
-        var actors = contraptionEntity.getContraption().getActors();
-        for (int i = 0; i < actors.size(); i++) {
-            var actor = actors.get(i);
-            if (actor.getLeft().pos().equals(localPos)) {
-                setContraptionActorData(contraptionEntity, i, newInfo, actor.getRight());
-                break;
-            }
-        }
-
-        // 发送自定义数据包同步NBT数据到客户端
-        if (!contraptionEntity.level().isClientSide) {
-            KCPacketHandler.sendToTracking(
-                    new KCContraptionChangedPacket(
-                            contraptionEntity.getId(),
-                            localPos,
-                            newInfo.state(),
-                            newInfo.nbt()
-                    ),
-                    contraptionEntity
-            );
-        }
+        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
     }
 }

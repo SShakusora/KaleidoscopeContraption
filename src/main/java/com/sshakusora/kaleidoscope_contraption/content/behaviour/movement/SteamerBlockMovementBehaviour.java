@@ -4,11 +4,10 @@ import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.SteamerBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModBlocks;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModParticles;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModRecipes;
-import com.github.ysbbbbbb.kaleidoscopecookery.init.tag.TagMod;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
-import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionDataUtil;
+import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
@@ -20,7 +19,6 @@ import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.Vec3;
 
@@ -82,7 +80,7 @@ public class SteamerBlockMovementBehaviour implements MovementBehaviour {
     private void updateLitLevel(MovementContext context, BlockState state, CompoundTag nbt) {
         int litLevel = 0;
 
-        if (hasHeatSource(context, state)) {
+        if (ContraptionInteractionUtil.hasHeatSource(context)) {
             litLevel = MAX_LIT_LEVEL;
         } else {
             // 检查下层是否是蒸笼
@@ -122,41 +120,6 @@ public class SteamerBlockMovementBehaviour implements MovementBehaviour {
      */
     private int getLitLevel(MovementContext context, BlockState state, CompoundTag nbt) {
         return nbt.getInt("LitLevel");
-    }
-
-    /**
-     * 检查是否有热源
-     */
-    private boolean hasHeatSource(MovementContext context, BlockState state) {
-        Contraption contraption = context.contraption;
-        BlockPos belowLocalPos = context.localPos.below();
-
-        // 首先检查Contraption内部下方是否有方块
-        StructureTemplate.StructureBlockInfo belowInfo = contraption.getBlocks().get(belowLocalPos);
-        if (belowInfo != null) {
-            BlockState belowState = belowInfo.state();
-            // 检查是否有LIT属性
-            if (belowState.hasProperty(BlockStateProperties.LIT)) {
-                return belowState.getValue(BlockStateProperties.LIT);
-            }
-            // 检查是否在热源标签中
-            return belowState.is(TagMod.HEAT_SOURCE_BLOCKS_WITHOUT_LIT);
-        }
-
-        // Contraption内部没有下方方块，检查世界中Contraption实体下方的方块
-        if (context.contraption.entity == null) {
-            return false;
-        }
-
-        Vec3 globalPos = context.contraption.entity.toGlobalVector(Vec3.atCenterOf(context.localPos), 1.0f);
-        BlockPos worldPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
-        BlockPos worldBelowPos = worldPos.below();
-
-        BlockState worldBelowState = context.world.getBlockState(worldBelowPos);
-        if (worldBelowState.hasProperty(BlockStateProperties.LIT)) {
-            return worldBelowState.getValue(BlockStateProperties.LIT);
-        }
-        return worldBelowState.is(TagMod.HEAT_SOURCE_BLOCKS_WITHOUT_LIT);
     }
 
     /**

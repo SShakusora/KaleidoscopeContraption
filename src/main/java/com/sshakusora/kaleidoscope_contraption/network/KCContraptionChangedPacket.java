@@ -161,6 +161,9 @@ public class KCContraptionChangedPacket {
                 }
             }
 
+            // 更新方块实体渲染
+            contraptionEntity.getContraption().resetClientContraption();
+
             // 更新bounds - 优先使用服务端同步的bounds
             boolean boundsUpdated = false;
             if (packet.updatedBounds != null) {

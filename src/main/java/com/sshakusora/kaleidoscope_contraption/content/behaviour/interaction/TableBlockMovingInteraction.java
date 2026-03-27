@@ -7,11 +7,10 @@ import com.github.ysbbbbbb.kaleidoscopecookery.util.CarpetColor;
 import com.github.ysbbbbbb.kaleidoscopecookery.util.ItemUtils;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
-import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccessor;
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
 import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
+import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundEvents;
@@ -26,10 +25,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.items.ItemStackHandler;
-import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
@@ -282,20 +279,21 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
             }
 
             // 更新Contraption的bounds - 参考Contraption.addBlock()的实现
-            AABB updatedBounds = contraptionEntity.getContraption().bounds.minmax(new AABB(abovePos));
-            contraptionEntity.getContraption().bounds = updatedBounds;
+            var updatedBounds = ContraptionInteractionUtil.updateBounds(contraptionEntity, abovePos);
 
             // 通知客户端重新渲染Contraption（同步bounds）
-            KCPacketHandler.sendToTracking(
-                    new KCContraptionChangedPacket(
-                            contraptionEntity.getId(),
-                            abovePos,
-                            newInfo.state(),
-                            newInfo.nbt(),
-                            updatedBounds
-                    ),
-                    contraptionEntity
-            );
+            if (!contraptionEntity.level().isClientSide) {
+                KCPacketHandler.sendToTracking(
+                        new KCContraptionChangedPacket(
+                                contraptionEntity.getId(),
+                                abovePos,
+                                newInfo.state(),
+                                newInfo.nbt(),
+                                updatedBounds
+                        ),
+                        contraptionEntity
+                );
+            }
 
             // 消耗玩家手持的一个物品
             if (!player.isCreative()) {
@@ -365,20 +363,21 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
             }
 
             // 更新Contraption的bounds
-            AABB updatedBounds = contraptionEntity.getContraption().bounds.minmax(new AABB(abovePos));
-            contraptionEntity.getContraption().bounds = updatedBounds;
+            var updatedBounds = ContraptionInteractionUtil.updateBounds(contraptionEntity, abovePos);
 
             // 通知客户端重新渲染Contraption（同步bounds）
-            KCPacketHandler.sendToTracking(
-                    new KCContraptionChangedPacket(
-                            contraptionEntity.getId(),
-                            abovePos,
-                            newInfo.state(),
-                            newInfo.nbt(),
-                            updatedBounds
-                    ),
-                    contraptionEntity
-            );
+            if (!contraptionEntity.level().isClientSide) {
+                KCPacketHandler.sendToTracking(
+                        new KCContraptionChangedPacket(
+                                contraptionEntity.getId(),
+                                abovePos,
+                                newInfo.state(),
+                                newInfo.nbt(),
+                                updatedBounds
+                        ),
+                        contraptionEntity
+                );
+            }
 
             // 消耗玩家手持的一个物品
             if (!player.isCreative()) {
@@ -421,31 +420,6 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
      */
     private void updateContraptionData(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
                                        StructureTemplate.StructureBlockInfo newInfo) {
-        setContraptionBlockData(contraptionEntity, localPos, newInfo);
-        // 标记为更新，避免重进存档后NBT消失
-        ((ContraptionAccessor) contraptionEntity.getContraption()).getUpdateTags().put(localPos, newInfo.nbt());
-
-        // 查找并更新actor数据
-        var actors = contraptionEntity.getContraption().getActors();
-        for (int i = 0; i < actors.size(); i++) {
-            MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> actor = actors.get(i);
-            if (actor.getLeft().pos().equals(localPos)) {
-                setContraptionActorData(contraptionEntity, i, newInfo, actor.getRight());
-                break;
-            }
-        }
-
-        // 发送自定义数据包同步NBT数据到客户端
-        if (!contraptionEntity.level().isClientSide) {
-            KCPacketHandler.sendToTracking(
-                    new KCContraptionChangedPacket(
-                            contraptionEntity.getId(),
-                            localPos,
-                            newInfo.state(),
-                            newInfo.nbt()
-                    ),
-                    contraptionEntity
-            );
-        }
+        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
     }
 }

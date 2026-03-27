@@ -2,7 +2,7 @@ package com.sshakusora.kaleidoscope_contraption.client.gui.overlay;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.PotBlockMovingInteraction;
+import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -66,7 +66,7 @@ public class ContraptionPotOverlay implements IGuiOverlay {
 
         // 检查是否有油以及下方是否有热源
         boolean hasOil = state.getValue(PotBlock.HAS_OIL);
-        if (!hasOil || !PotBlockMovingInteraction.hasHeatSource(potTarget.contraptionEntity(), potTarget.localPos())) {
+        if (!hasOil || !ContraptionInteractionUtil.hasHeatSource(potTarget.contraptionEntity(), potTarget.localPos())) {
             return;
         }
 

@@ -9,11 +9,8 @@ import com.github.ysbbbbbb.kaleidoscopecookery.init.ModTrigger;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.tag.TagMod;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
-import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccessor;
-import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
-import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
 import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
-import com.sshakusora.kaleidoscope_contraption.util.ContraptionBoundsUtil;
+import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -26,13 +23,10 @@ import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.items.ItemHandlerHelper;
-import org.apache.commons.lang3.tuple.MutablePair;
 
 import java.util.Optional;
 
@@ -256,8 +250,6 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
     private void resetChoppingBoard(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
                                      BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
         CompoundTag newNbt = new CompoundTag();
-        // 显式设置空值，确保客户端能正确清除渲染状态
-        newNbt.putString(MODEL_ID, "kaleidoscope_contraption:no_model");
         newNbt.putInt(MAX_CUT_COUNT, 0);
         newNbt.putInt(CURRENT_CUT_COUNT, 0);
         newNbt.put(CURRENT_CUT_STACK, ItemStack.EMPTY.serializeNBT());
@@ -329,17 +321,11 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
 
         // 在服务端执行移除逻辑
         if (!contraptionEntity.level().isClientSide) {
-            // 从blocks中真正移除该位置（而不是替换为空气）
-            contraptionEntity.getContraption().getBlocks().remove(localPos);
-
-            // 从interactors中移除
-            contraptionEntity.getContraption().getInteractors().remove(localPos);
-
-            // 从actors中移除
-            contraptionEntity.getContraption().getActors().removeIf(actor -> actor.getLeft().pos().equals(localPos));
+            // 从Contraption中移除方块
+            ContraptionInteractionUtil.removeBlockFromContraption(contraptionEntity, localPos);
 
             // 更新Contraption的bounds - 移除方块后需要重新计算
-            AABB updatedBounds = ContraptionBoundsUtil.recalculateBounds(contraptionEntity.getContraption());
+            var updatedBounds = ContraptionInteractionUtil.recalculateBounds(contraptionEntity);
 
             // 掉落ChoppingBoardBlock物品给玩家
             ItemStack boardItem = new ItemStack(ModBlocks.CHOPPING_BOARD.get());
@@ -348,24 +334,10 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
             }
 
             // 通知客户端重新渲染Contraption（同步bounds）
-            BlockState airState = Blocks.AIR.defaultBlockState();
-
-            KCPacketHandler.sendToTracking(
-                    new KCContraptionChangedPacket(
-                            contraptionEntity.getId(),
-                            localPos,
-                            airState,
-                            null,
-                            updatedBounds
-                    ),
-                    contraptionEntity
-            );
+            ContraptionInteractionUtil.syncBlockRemoval(contraptionEntity, localPos, updatedBounds);
 
             // 播放破坏音效
-            Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
-            BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
-            contraptionEntity.level().playSound(null, soundPos, aboveInfo.state().getSoundType().getBreakSound(),
-                    SoundSource.BLOCKS, 1.0F, 0.8F);
+            ContraptionInteractionUtil.playBreakSound(contraptionEntity, localPos, aboveInfo.state());
         }
 
         return true;
@@ -376,30 +348,6 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
      */
     private void updateContraptionData(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
                                        StructureTemplate.StructureBlockInfo newInfo) {
-        setContraptionBlockData(contraptionEntity, localPos, newInfo);
-        ((ContraptionAccessor) contraptionEntity.getContraption()).getUpdateTags().put(localPos, newInfo.nbt());
-
-        // 查找并更新actor数据
-        var actors = contraptionEntity.getContraption().getActors();
-        for (int i = 0; i < actors.size(); i++) {
-            MutablePair<StructureTemplate.StructureBlockInfo, com.simibubi.create.content.contraptions.behaviour.MovementContext> actor = actors.get(i);
-            if (actor.getLeft().pos().equals(localPos)) {
-                setContraptionActorData(contraptionEntity, i, newInfo, actor.getRight());
-                break;
-            }
-        }
-
-        // 发送自定义数据包同步NBT数据到客户端
-        if (!contraptionEntity.level().isClientSide) {
-            KCPacketHandler.sendToTracking(
-                    new KCContraptionChangedPacket(
-                            contraptionEntity.getId(),
-                            localPos,
-                            newInfo.state(),
-                            newInfo.nbt()
-                    ),
-                    contraptionEntity
-            );
-        }
+        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
     }
 }

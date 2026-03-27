@@ -18,6 +18,7 @@ import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
 import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
+import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
@@ -35,7 +36,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.tuple.MutablePair;
 
@@ -238,8 +238,7 @@ public class StoveBlockMovingInteraction extends MovingInteractionBehaviour {
             }
 
             // 更新Contraption的bounds - 参考Contraption.addBlock()的实现
-            AABB updatedBounds = contraptionEntity.getContraption().bounds.minmax(new AABB(abovePos));
-            contraptionEntity.getContraption().bounds = updatedBounds;
+            var updatedBounds = ContraptionInteractionUtil.updateBounds(contraptionEntity, abovePos);
 
             // 通知客户端重新渲染Contraption（同步bounds）
             KCPacketHandler.sendToTracking(
@@ -343,8 +342,7 @@ public class StoveBlockMovingInteraction extends MovingInteractionBehaviour {
             }
 
             // 更新Contraption的bounds - 参考Contraption.addBlock()的实现
-            AABB updatedBounds = contraptionEntity.getContraption().bounds.minmax(new AABB(abovePos));
-            contraptionEntity.getContraption().bounds = updatedBounds;
+            var updatedBounds = ContraptionInteractionUtil.updateBounds(contraptionEntity, abovePos);
 
             // 通知客户端重新渲染Contraption（同步bounds）
             KCPacketHandler.sendToTracking(
@@ -474,8 +472,7 @@ public class StoveBlockMovingInteraction extends MovingInteractionBehaviour {
             }
 
             // 更新Contraption的bounds - 参考Contraption.addBlock()的实现
-            AABB updatedBounds = contraptionEntity.getContraption().bounds.minmax(new AABB(abovePos));
-            contraptionEntity.getContraption().bounds = updatedBounds;
+            var updatedBounds = ContraptionInteractionUtil.updateBounds(contraptionEntity, abovePos);
 
             // 通知客户端重新渲染Contraption（同步bounds）
             KCPacketHandler.sendToTracking(

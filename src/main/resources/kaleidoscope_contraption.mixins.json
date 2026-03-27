@@ -10,7 +10,6 @@
     "accessor.FoodBiteBlockAccessor"
   ],
   "client": [
-    "ChoppingBoardBlockEntityRenderMixin"
   ],
   "injectors": {
     "defaultRequire": 1
