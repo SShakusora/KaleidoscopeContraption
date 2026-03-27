@@ -16,6 +16,7 @@ import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
+import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
@@ -56,18 +57,22 @@ public class StoveBlockMovingInteraction extends MovingInteractionBehaviour {
 
         ItemStack itemInHand = player.getItemInHand(activeHand);
 
-        // 处理放置PotBlock
-        if (handlePotBlockPlacement(player, activeHand, localPos, contraptionEntity, info, itemInHand)) {
-            if (state.getValue(BlockStateProperties.LIT))
-                ModTrigger.EVENT.trigger(player, ModEventTriggerType.PLACE_POT_ON_HEAT_SOURCE);
-            return true;
-        }
+        if (!KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
+            // 处理放置PotBlock
+            if (handlePotBlockPlacement(player, activeHand, localPos, contraptionEntity, info, itemInHand)) {
+                if (state.getValue(BlockStateProperties.LIT))
+                    ModTrigger.EVENT.trigger(player, ModEventTriggerType.PLACE_POT_ON_HEAT_SOURCE);
+                return true;
+            }
 
-        // 处理放置StockPotBlock
-        if (handleStockpotBlockPlacement(player, activeHand, localPos, contraptionEntity, info, itemInHand)) {
-            if (state.getValue(BlockStateProperties.LIT))
-                ModTrigger.EVENT.trigger(player, ModEventTriggerType.PLACE_STOCKPOT_ON_HEAT_SOURCE);
-            return true;
+
+            // 处理放置StockPotBlock
+            if (handleStockpotBlockPlacement(player, activeHand, localPos, contraptionEntity, info, itemInHand)
+                    && !KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
+                if (state.getValue(BlockStateProperties.LIT))
+                    ModTrigger.EVENT.trigger(player, ModEventTriggerType.PLACE_STOCKPOT_ON_HEAT_SOURCE);
+                return true;
+            }
         }
 
         // 点燃炉灶

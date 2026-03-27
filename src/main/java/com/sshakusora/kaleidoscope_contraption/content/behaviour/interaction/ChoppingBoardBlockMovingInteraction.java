@@ -12,6 +12,7 @@ import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccessor;
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
+import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionBoundsUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -22,6 +23,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
@@ -58,8 +60,8 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
 
         ItemStack itemInHand = player.getItemInHand(activeHand);
 
-        // 处理空手+Shift+右键取下ChoppingBoardBlock
-        if (itemInHand.isEmpty() && player.isShiftKeyDown()) {
+        // 处理按下移除键取下ChoppingBoardBlock
+        if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
             if (removeChoppingBoardBlock(player, contraptionEntity, localPos, activeHand)) {
                 return true;
             }
@@ -296,7 +298,7 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
             return;
         }
         Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
-        net.minecraft.world.entity.item.ItemEntity entity = new net.minecraft.world.entity.item.ItemEntity(
+        ItemEntity entity = new ItemEntity(
                 contraptionEntity.level(),
                 globalPos.x,
                 globalPos.y - 0.25,

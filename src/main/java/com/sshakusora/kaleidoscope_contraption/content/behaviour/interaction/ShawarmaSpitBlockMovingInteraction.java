@@ -8,6 +8,7 @@ import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccessor;
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
+import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionBoundsUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -51,12 +52,10 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
 
         ItemStack itemInHand = player.getItemInHand(activeHand);
 
-        // 处理空手+Shift+右键取下ShawarmaSpitBlock
-//        if (itemInHand.isEmpty() && player.isShiftKeyDown()) {
-//            if (removeShawarmaSpitBlock(player, contraptionEntity, localPos, activeHand)) {
-//                return true;
-//            }
-//        }
+        // 处理按下移除键取下ShawarmaSpitBlock
+        if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
+            return removeShawarmaSpitBlock(player, contraptionEntity, localPos, activeHand);
+        }
 
         CompoundTag nbt = info.nbt();
         if (nbt == null) {

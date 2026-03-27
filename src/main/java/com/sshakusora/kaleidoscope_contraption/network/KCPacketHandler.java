@@ -34,6 +34,13 @@ public class KCPacketHandler {
                 KCContraptionChangedPacket::decode,
                 KCContraptionChangedPacket::handle,
                 NetworkDirection.PLAY_TO_CLIENT);
+
+        // 注册移除方块请求包（C2S）
+        registerPacket(KCRemoveBlockPacket.class,
+                KCRemoveBlockPacket::encode,
+                KCRemoveBlockPacket::decode,
+                KCRemoveBlockPacket::handle,
+                NetworkDirection.PLAY_TO_SERVER);
     }
 
     private static <T> void registerPacket(Class<T> packetClass,

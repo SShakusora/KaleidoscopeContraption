@@ -10,6 +10,7 @@ import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.sshakusora.kaleidoscope_contraption.mixin.accessor.FoodBiteBlockAccessor;
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
+import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionBoundsUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -55,6 +56,8 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
         if (currentBites >= maxBites) {
             return handleReplacement(player, activeHand, localPos, contraptionEntity, state, info);
         }
+
+        if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) return false;
 
         // 获取食物属性（FoodBiteBlock中的protected字段）
         FoodProperties foodProperties = ((FoodBiteBlockAccessor) foodBlock).getFoodProperties();

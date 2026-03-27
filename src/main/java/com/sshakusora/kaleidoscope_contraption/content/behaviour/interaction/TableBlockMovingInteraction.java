@@ -3,7 +3,6 @@ package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.decoration.TableBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.food.FoodBiteBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.ChoppingBoardBlock;
-import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.PotRecipe;
 import com.github.ysbbbbbb.kaleidoscopecookery.util.CarpetColor;
 import com.github.ysbbbbbb.kaleidoscopecookery.util.ItemUtils;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
@@ -12,19 +11,17 @@ import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccessor;
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
+import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.ItemTags;
-import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -68,6 +65,8 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
         if (handleChoppingBoardPlacement(player, activeHand, localPos, contraptionEntity, info, itemInHand)) {
             return true;
         }
+
+        if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) return false;
 
         // 处理物品放置/取出交互
         return handleItemInteraction(player, activeHand, localPos, contraptionEntity, state, info, itemInHand);

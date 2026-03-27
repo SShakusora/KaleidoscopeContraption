@@ -22,6 +22,7 @@ import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccessor;
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
+import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionBoundsUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
@@ -88,8 +89,9 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
         }
 
         ItemStack itemInHand = player.getItemInHand(activeHand);
-        // 处理空手+Shift+右键取下PotBlock
-        if (itemInHand.isEmpty() && player.isShiftKeyDown()) {
+
+        // 处理按下移除键取下PotBlock
+        if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
             if (removePotBlock(player, contraptionEntity, localPos, activeHand)) {
                 return true;
             }
