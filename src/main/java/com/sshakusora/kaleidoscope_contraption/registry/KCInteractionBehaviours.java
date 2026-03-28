@@ -10,6 +10,9 @@ public class KCInteractionBehaviours {
     public static void registerDefaults() {
         // 注册食物方块的交互行为
         FoodBiteBlockMovingInteraction foodInteraction = new FoodBiteBlockMovingInteraction();
+        FoodBiteOneByTwoBlockMovingInteraction oneByTwoInteraction = new FoodBiteOneByTwoBlockMovingInteraction();
+        FoodBiteThreeByThreeBlockMovingInteraction threeByThreeInteraction = new FoodBiteThreeByThreeBlockMovingInteraction();
+
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.DARK_CUISINE), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.SUSPICIOUS_STIR_FRY), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.SLIME_BALL_MEAL), foodInteraction);
@@ -43,9 +46,13 @@ public class KCInteractionBehaviours {
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.FRIED_SPRING_ROLL), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.SPICY_BLOOD_STEW), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.FRUIT_PLATTER), foodInteraction);
-        MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.BRAISED_PORK_RIBS), foodInteraction);
-        MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.COLD_ROASTED_MEAT), foodInteraction);
-        MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.OIL_SPLASHED_FISH), foodInteraction);
+        // 1x2 食物方块使用专门的交互行为
+        MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.BRAISED_PORK_RIBS), oneByTwoInteraction);
+        MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.COLD_ROASTED_MEAT), oneByTwoInteraction);
+        MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.OIL_SPLASHED_FISH), oneByTwoInteraction);
+
+        // 3x3 食物方块使用专门的交互行为
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.COLD_CUT_HAM_SLICES.get(), threeByThreeInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.BROWN_MUSHROOM_POT_SOUP), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.RED_MUSHROOM_POT_SOUP), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.WARPED_FUNGUS_POT_SOUP), foodInteraction);

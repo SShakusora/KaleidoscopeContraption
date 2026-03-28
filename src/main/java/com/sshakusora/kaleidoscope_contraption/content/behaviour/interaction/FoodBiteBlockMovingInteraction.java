@@ -19,6 +19,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
@@ -54,31 +55,10 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
 
         if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) return false;
 
-        // 获取食物属性（FoodBiteBlock中的protected字段）
-        FoodProperties foodProperties = ((FoodBiteBlockAccessor) foodBlock).getFoodProperties();
-        if (foodProperties == null || !player.canEat(foodProperties.canAlwaysEat())) {
+        // 检查是否可以食用并执行食用逻辑
+        if (!eatFood(player, foodBlock, contraptionEntity, localPos)) {
             return false;
         }
-
-        // 执行食用逻辑
-        player.getFoodData().eat(foodProperties.getNutrition(), foodProperties.getSaturationModifier());
-
-        // 应用食物效果
-        for (Pair<MobEffectInstance, Float> pair : foodProperties.getEffects()) {
-            if (!contraptionEntity.level().isClientSide && pair.getFirst() != null && contraptionEntity.level().random.nextFloat() < pair.getSecond()) {
-                player.addEffect(new MobEffectInstance(pair.getFirst()));
-            }
-        }
-
-        // 计算全局位置用于播放音效和触发事件
-        Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
-        BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
-
-        // 播放音效
-        contraptionEntity.level().playSound(null, soundPos, SoundEvents.GENERIC_EAT, SoundSource.PLAYERS, 0.5F, contraptionEntity.level().getRandom().nextFloat() * 0.1F + 0.9F);
-
-        // 触发游戏事件
-        contraptionEntity.level().gameEvent(player, GameEvent.EAT, soundPos);
 
         // 更新咬食次数
         BlockState newState = state.setValue(bitesProperty, currentBites + 1);
@@ -173,9 +153,43 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
     }
 
     /**
+     * 检查玩家是否可以食用该食物，并执行食用逻辑
+     * @return 如果成功食用返回 true，否则返回 false
+     */
+    protected boolean eatFood(Player player, FoodBiteBlock foodBlock, AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
+        // 获取食物属性（FoodBiteBlock中的protected字段）
+        FoodProperties foodProperties = ((FoodBiteBlockAccessor) foodBlock).getFoodProperties();
+        if (foodProperties == null || !player.canEat(foodProperties.canAlwaysEat())) {
+            return false;
+        }
+
+        // 执行食用逻辑
+        player.getFoodData().eat(foodProperties.getNutrition(), foodProperties.getSaturationModifier());
+
+        // 应用食物效果
+        for (Pair<MobEffectInstance, Float> pair : foodProperties.getEffects()) {
+            if (!contraptionEntity.level().isClientSide && pair.getFirst() != null && contraptionEntity.level().random.nextFloat() < pair.getSecond()) {
+                player.addEffect(new MobEffectInstance(pair.getFirst()));
+            }
+        }
+
+        // 计算全局位置用于播放音效和触发事件
+        Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
+        BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
+
+        // 播放音效
+        contraptionEntity.level().playSound(null, soundPos, SoundEvents.GENERIC_EAT, SoundSource.PLAYERS, 0.5F, contraptionEntity.level().getRandom().nextFloat() * 0.1F + 0.9F);
+
+        // 触发游戏事件
+        contraptionEntity.level().gameEvent(player, GameEvent.EAT, soundPos);
+
+        return true;
+    }
+
+    /**
      * 掉落食物的LootTable物品（bowl和额外添加物）
      */
-    private void dropLootItems(BlockState state, AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
+    protected void dropLootItems(BlockState state, AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
         ResourceLocation blockId = ForgeRegistries.BLOCKS.getKey(state.getBlock());
         if (blockId == null) {
             return;
@@ -183,6 +197,8 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
 
         FoodBiteRegistry.FoodData foodData = FoodBiteRegistry.FOOD_DATA_MAP.get(blockId);
         if (foodData == null) {
+            // 对于不在 FoodBiteRegistry 中的方块（如 3x3 方块），使用默认掉落（碗）
+            dropDefaultLootItems(state, contraptionEntity, localPos);
             return;
         }
 
@@ -207,5 +223,31 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
             );
             contraptionEntity.level().addFreshEntity(itemEntity);
         }
+    }
+
+    /**
+     * 掉落默认的战利品（碗）
+     * 用于不在 FoodBiteRegistry 中的方块
+     */
+    protected void dropDefaultLootItems(BlockState state, AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
+        // 计算全局位置用于生成掉落物
+        Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
+
+        // 默认只掉落碗
+        ItemStack stack = new ItemStack(Items.BOWL);
+        ItemEntity itemEntity = new ItemEntity(
+                contraptionEntity.level(),
+                globalPos.x,
+                globalPos.y,
+                globalPos.z,
+                stack
+        );
+        // 给予掉落物一个小的随机速度
+        itemEntity.setDeltaMovement(
+                contraptionEntity.level().getRandom().nextGaussian() * 0.05,
+                contraptionEntity.level().getRandom().nextGaussian() * 0.05 + 0.2,
+                contraptionEntity.level().getRandom().nextGaussian() * 0.05
+        );
+        contraptionEntity.level().addFreshEntity(itemEntity);
     }
 }

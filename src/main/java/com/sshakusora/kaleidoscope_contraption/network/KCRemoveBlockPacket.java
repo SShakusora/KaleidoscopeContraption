@@ -2,6 +2,7 @@ package com.sshakusora.kaleidoscope_contraption.network;
 
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
+import com.sshakusora.kaleidoscope_contraption.util.DevEnvUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
@@ -47,8 +48,10 @@ public class KCRemoveBlockPacket {
                 return;
             }
 
-            LOGGER.info("[KCRemoveBlockPacket] Handling remove request from player: {}, contraptionId: {}, targetPos: {}",
-                    player.getName().getString(), packet.contraptionEntityId, packet.targetPos);
+            if (DevEnvUtil.isDevEnvironment()) {
+                LOGGER.info("[KCRemoveBlockPacket] Handling remove request from player: {}, contraptionId: {}, targetPos: {}",
+                        player.getName().getString(), packet.contraptionEntityId, packet.targetPos);
+            }
 
             // 获取Contraption实体（使用客户端上传的ID）
             var entity = player.level().getEntity(packet.contraptionEntityId);
@@ -64,8 +67,10 @@ public class KCRemoveBlockPacket {
                 return;
             }
 
-            LOGGER.info("[KCRemoveBlockPacket] Removing block {} at {} in contraption {}",
-                    blockInfo.state().getBlock().getName().getString(), packet.targetPos, packet.contraptionEntityId);
+            if (DevEnvUtil.isDevEnvironment()) {
+                LOGGER.info("[KCRemoveBlockPacket] Removing block {} at {} in contraption {}",
+                        blockInfo.state().getBlock().getName().getString(), packet.targetPos, packet.contraptionEntityId);
+            }
 
             // 触发对应方块的移除逻辑
             triggerRemoveInteraction(player, contraptionEntity, packet.targetPos, blockInfo);

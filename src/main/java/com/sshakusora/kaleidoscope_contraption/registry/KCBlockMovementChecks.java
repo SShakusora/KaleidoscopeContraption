@@ -1,5 +1,6 @@
 package com.sshakusora.kaleidoscope_contraption.registry;
 
+import com.github.ysbbbbbb.kaleidoscopecookery.block.food.FoodBiteOneByTwoBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.ShawarmaSpitBlock;
 import com.simibubi.create.api.contraption.BlockMovementChecks;
 import net.minecraft.core.Direction;
@@ -42,9 +43,9 @@ public class KCBlockMovementChecks {
             return BlockMovementChecks.CheckResult.PASS; // 让其他检查器处理
         });
 
-        // 防止沙威玛烤架在Contraption中disassemble时消失
+        // 防止沙威玛烤架和多方快食物在Contraption中disassemble时消失
         BlockMovementChecks.registerBrittleCheck(state -> {
-            if (state.getBlock() instanceof ShawarmaSpitBlock) {
+            if (state.getBlock() instanceof ShawarmaSpitBlock || state.getBlock() instanceof FoodBiteOneByTwoBlock) {
                 return BlockMovementChecks.CheckResult.SUCCESS;
             }
             return BlockMovementChecks.CheckResult.PASS;
