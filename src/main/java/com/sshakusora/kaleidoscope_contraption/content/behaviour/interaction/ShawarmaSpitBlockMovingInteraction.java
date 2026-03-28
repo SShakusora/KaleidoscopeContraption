@@ -111,7 +111,7 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
 
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                     info.pos(), state, newNbt);
-            updateContraptionData(contraptionEntity, localPos, newInfo);
+            ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
             // 播放放入音效
             Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
@@ -181,7 +181,7 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
 
         StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                 info.pos(), state, newNbt);
-        updateContraptionData(contraptionEntity, localPos, newInfo);
+        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
         // 播放取出音效
         Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
@@ -295,11 +295,4 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
         return ItemStack.EMPTY;
     }
 
-    /**
-     * 更新Contraption中的方块数据
-     */
-    private void updateContraptionData(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                       StructureTemplate.StructureBlockInfo newInfo) {
-        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
-    }
 }

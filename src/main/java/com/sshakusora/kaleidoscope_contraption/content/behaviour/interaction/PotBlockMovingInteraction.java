@@ -188,7 +188,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
 
         StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                 info.pos(), newState, newNbt);
-        updateContraptionData(contraptionEntity, localPos, newInfo);
+        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
         // 播放音效
         Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
@@ -231,7 +231,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
                     saveInputs(newNbt, inputs);
                     StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                             info.pos(), state, newNbt);
-                    updateContraptionData(contraptionEntity, localPos, newInfo);
+                    ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
                 }
 
                 // 播放音效
@@ -277,7 +277,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
                 saveInputs(newNbt, inputs);
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), state, newNbt);
-                updateContraptionData(contraptionEntity, localPos, newInfo);
+                ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
             }
 
             if (ContraptionInteractionUtil.hasHeatSource(contraptionEntity, localPos)) {
@@ -333,7 +333,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
                 if (stirFryCount > 0) {
                     newNbt.putInt(STIR_FRY_COUNT, stirFryCount - 1);
                 }
-                updateContraptionData(contraptionEntity, localPos, new StructureTemplate.StructureBlockInfo(
+                ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, new StructureTemplate.StructureBlockInfo(
                         info.pos(), state, newNbt));
                 ModTrigger.EVENT.trigger(user, ModEventTriggerType.STIR_FRY_IN_POT);
             }
@@ -369,7 +369,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
 
         StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                 info.pos(), state, newNbt);
-        updateContraptionData(contraptionEntity, localPos, newInfo);
+        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
     }
 
     /**
@@ -475,7 +475,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
 
         StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                 info.pos(), newState, newNbt);
-        updateContraptionData(contraptionEntity, localPos, newInfo);
+        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
     }
 
     /**
@@ -587,11 +587,4 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
         }
     }
 
-    /**
-     * 更新Contraption中的方块数据
-     */
-    private void updateContraptionData(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                       StructureTemplate.StructureBlockInfo newInfo) {
-        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
-    }
 }

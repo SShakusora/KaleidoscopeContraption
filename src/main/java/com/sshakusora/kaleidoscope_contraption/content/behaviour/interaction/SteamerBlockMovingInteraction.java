@@ -122,7 +122,7 @@ public class SteamerBlockMovingInteraction extends MovingInteractionBehaviour {
 
         StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                 info.pos(), newState, nbt);
-        updateContraptionData(contraptionEntity, localPos, newInfo);
+        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
         // 播放音效
         Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
@@ -206,7 +206,7 @@ public class SteamerBlockMovingInteraction extends MovingInteractionBehaviour {
 
                     StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                             targetInfo.pos(), newState, newNbt);
-                    updateContraptionData(contraptionEntity, placePos, newInfo);
+                    ContraptionInteractionUtil.updateContraptionData(contraptionEntity, placePos, newInfo);
 
                     // 消耗物品
                     if (!player.isCreative()) {
@@ -440,7 +440,7 @@ public class SteamerBlockMovingInteraction extends MovingInteractionBehaviour {
             newNbt.putIntArray(COOKING_TIME_TAG, cookingTime);
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                     info.pos(), state, newNbt);
-            updateContraptionData(contraptionEntity, localPos, newInfo);
+            ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
             // 播放音效
             Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
@@ -531,7 +531,7 @@ public class SteamerBlockMovingInteraction extends MovingInteractionBehaviour {
                 newNbt.putIntArray(COOKING_TIME_TAG, cookingTime);
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), newState, newNbt);
-                updateContraptionData(contraptionEntity, localPos, newInfo);
+                ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
             }
         } else if (!contraptionEntity.level().isClientSide) {
             // 更新数据
@@ -541,7 +541,7 @@ public class SteamerBlockMovingInteraction extends MovingInteractionBehaviour {
             newNbt.putIntArray(COOKING_TIME_TAG, cookingTime);
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                     info.pos(), state, newNbt);
-            updateContraptionData(contraptionEntity, localPos, newInfo);
+            ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
         }
 
         return true;
@@ -667,11 +667,4 @@ public class SteamerBlockMovingInteraction extends MovingInteractionBehaviour {
         ContainerHelper.saveAllItems(nbt, items, true);
     }
 
-    /**
-     * 更新Contraption中的方块数据
-     */
-    private void updateContraptionData(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                       StructureTemplate.StructureBlockInfo newInfo) {
-        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
-    }
 }

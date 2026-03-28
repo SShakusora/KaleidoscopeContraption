@@ -96,7 +96,7 @@ public class FruitBasketBlockMovingInteraction extends MovingInteractionBehaviou
 
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                     info.pos(), state, newNbt);
-            updateContraptionData(contraptionEntity, localPos, newInfo);
+            ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
             // 播放音效
             playSound(contraptionEntity, localPos, SoundEvents.ITEM_FRAME_ADD_ITEM, SoundSource.BLOCKS);
@@ -130,7 +130,7 @@ public class FruitBasketBlockMovingInteraction extends MovingInteractionBehaviou
 
                     StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                             info.pos(), state, newNbt);
-                    updateContraptionData(contraptionEntity, localPos, newInfo);
+                    ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
                     // 播放音效
                     playSound(contraptionEntity, localPos, SoundEvents.ITEM_FRAME_REMOVE_ITEM, SoundSource.BLOCKS);
@@ -211,11 +211,4 @@ public class FruitBasketBlockMovingInteraction extends MovingInteractionBehaviou
         ContraptionInteractionUtil.playSound(contraptionEntity, localPos, soundEvent, source, 1.0f, 1.0f);
     }
 
-    /**
-     * 更新Contraption中的方块数据
-     */
-    private void updateContraptionData(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                       StructureTemplate.StructureBlockInfo newInfo) {
-        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
-    }
 }

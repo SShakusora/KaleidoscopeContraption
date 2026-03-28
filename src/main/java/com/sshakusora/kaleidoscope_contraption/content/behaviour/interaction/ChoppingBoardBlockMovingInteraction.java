@@ -20,7 +20,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.SimpleContainer;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
@@ -136,7 +135,7 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
 
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), state, newNbt);
-                updateContraptionData(contraptionEntity, localPos, newInfo);
+                ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
             }
 
             // 播放音效
@@ -170,7 +169,7 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
 
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                     info.pos(), state, newNbt);
-            updateContraptionData(contraptionEntity, localPos, newInfo);
+            ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
             // 切菜成功时，有 25% 的概率消耗耐久度
             if (contraptionEntity.level().random.nextDouble() < DURABILITY_COST_PROBABILITY) {
@@ -198,7 +197,7 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
 
         if (!contraptionEntity.level().isClientSide) {
             // 掉落成品
-            popResource(contraptionEntity, localPos, result.copy());
+            ContraptionInteractionUtil.popResource(contraptionEntity, localPos, result.copy());
 
             // 重置切菜板数据
             resetChoppingBoard(contraptionEntity, localPos, state, nbt, info);
@@ -257,7 +256,7 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
 
         StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                 info.pos(), state, newNbt);
-        updateContraptionData(contraptionEntity, localPos, newInfo);
+        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
     }
 
     /**
@@ -280,24 +279,6 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
                 SoundEvents.WOOD_PLACE,
                 SoundSource.BLOCKS,
                 1, 1.5f + contraptionEntity.level().random.nextFloat() * 0.4f);
-    }
-
-    /**
-     * 在Contraption位置弹出物品
-     */
-    private void popResource(AbstractContraptionEntity contraptionEntity, BlockPos localPos, ItemStack stack) {
-        if (contraptionEntity.level().isClientSide || stack.isEmpty()) {
-            return;
-        }
-        Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
-        ItemEntity entity = new ItemEntity(
-                contraptionEntity.level(),
-                globalPos.x,
-                globalPos.y - 0.25,
-                globalPos.z,
-                stack, 0, 0.1, 0);
-        entity.setDefaultPickUpDelay();
-        contraptionEntity.level().addFreshEntity(entity);
     }
 
     /**
@@ -343,11 +324,4 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
         return true;
     }
 
-    /**
-     * 更新Contraption中的方块数据
-     */
-    private void updateContraptionData(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                       StructureTemplate.StructureBlockInfo newInfo) {
-        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
-    }
 }

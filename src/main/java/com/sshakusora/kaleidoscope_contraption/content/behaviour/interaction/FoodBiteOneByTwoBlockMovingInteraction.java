@@ -215,15 +215,13 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
             dropLootItems(leftInfo.state(), contraptionEntity, leftPos);
 
             // 移除两个方块
-            ContraptionInteractionUtil.removeBlockFromContraption(contraptionEntity, leftPos);
-            ContraptionInteractionUtil.removeBlockFromContraption(contraptionEntity, rightPos);
+            ContraptionInteractionUtil.removeBlocksFromContraption(contraptionEntity, leftPos, rightPos);
 
             // 更新 bounds
             var updatedBounds = ContraptionInteractionUtil.recalculateBounds(contraptionEntity);
 
             // 同步到客户端
-            ContraptionInteractionUtil.syncBlockRemoval(contraptionEntity, leftPos, updatedBounds);
-            ContraptionInteractionUtil.syncBlockRemoval(contraptionEntity, rightPos, updatedBounds);
+            ContraptionInteractionUtil.syncBlockRemoval(contraptionEntity, updatedBounds, leftPos, rightPos);
 
             // 播放破坏音效
             ContraptionInteractionUtil.playBreakSound(contraptionEntity, leftPos, leftInfo.state());

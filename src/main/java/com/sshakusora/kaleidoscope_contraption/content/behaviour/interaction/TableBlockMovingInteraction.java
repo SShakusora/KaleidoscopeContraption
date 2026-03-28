@@ -21,7 +21,6 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
@@ -101,7 +100,7 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
         if (handEmpty && !tableItem.isEmpty()) {
             if (!contraptionEntity.level().isClientSide) {
                 // 掉落物品给玩家
-                dropItemToPlayer(contraptionEntity, localPos, player, tableItem.copy());
+                ContraptionInteractionUtil.dropItemToPlayer(contraptionEntity, localPos, player, tableItem.copy());
                 tableItems.setStackInSlot(tableIndex, ItemStack.EMPTY);
 
                 // 更新NBT
@@ -109,7 +108,7 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
                 newNbt.put(SHOW_ITEMS, tableItems.serializeNBT());
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), state, newNbt);
-                updateContraptionData(contraptionEntity, localPos, newInfo);
+                ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
             }
             // 播放音效
             Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
@@ -134,7 +133,7 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
                 newNbt.put(SHOW_ITEMS, tableItems.serializeNBT());
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), state, newNbt);
-                updateContraptionData(contraptionEntity, localPos, newInfo);
+                ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
             }
             // 播放音效
             Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
@@ -181,7 +180,7 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
 
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), newState, newNbt);
-                updateContraptionData(contraptionEntity, localPos, newInfo);
+                ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
                 // 消耗物品
                 if (!player.isCreative()) {
@@ -201,7 +200,7 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
             if (!contraptionEntity.level().isClientSide) {
                 // 掉落原地毯
                 ItemStack carpetItem = new ItemStack(CarpetColor.getCarpetByColor(currentColor));
-                dropItemToPlayer(contraptionEntity, localPos, player, carpetItem);
+                ContraptionInteractionUtil.dropItemToPlayer(contraptionEntity, localPos, player, carpetItem);
 
                 // 更新NBT中的颜色
                 CompoundTag newNbt = nbt.copy();
@@ -209,7 +208,7 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
 
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), state, newNbt);
-                updateContraptionData(contraptionEntity, localPos, newInfo);
+                ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
                 // 消耗物品
                 if (!player.isCreative()) {
@@ -585,32 +584,4 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
         return true;
     }
 
-    /**
-     * 在指定位置生成掉落物（模拟popResource）
-     */
-    private void dropItemToPlayer(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                  Player player, ItemStack stack) {
-        if (contraptionEntity.level().isClientSide || stack.isEmpty()) {
-            return;
-        }
-
-        Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
-        ItemEntity itemEntity = new ItemEntity(
-                contraptionEntity.level(),
-                globalPos.x,
-                globalPos.y + 0.75,
-                globalPos.z,
-                stack
-        );
-        itemEntity.setDefaultPickUpDelay();
-        contraptionEntity.level().addFreshEntity(itemEntity);
-    }
-
-    /**
-     * 更新Contraption中的方块数据
-     */
-    private void updateContraptionData(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                       StructureTemplate.StructureBlockInfo newInfo) {
-        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
-    }
 }

@@ -157,7 +157,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
 
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), newState, newNbt);
-                updateContraptionData(contraptionEntity, localPos, newInfo);
+                ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
                 // 播放音效
                 Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
@@ -189,7 +189,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
 
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), newState, newNbt);
-                updateContraptionData(contraptionEntity, localPos, newInfo);
+                ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
                 // 给予玩家盖子
                 if (stack.isEmpty()) {
@@ -231,7 +231,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
 
                     StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                             info.pos(), state, newNbt);
-                    updateContraptionData(contraptionEntity, localPos, newInfo);
+                    ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
                     // 返还容器
                     ItemStack container = soupBase.getReturnContainer(contraptionEntity.level(), player, bucket);
@@ -271,7 +271,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
 
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                     info.pos(), state, newNbt);
-            updateContraptionData(contraptionEntity, localPos, newInfo);
+            ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
             // 返还汤底
             ItemStack container = soupBase.getReturnSoupBase(contraptionEntity.level(), player, bucket);
@@ -317,7 +317,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
                     saveInputs(newNbt, inputs);
                     StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                             info.pos(), state, newNbt);
-                    updateContraptionData(contraptionEntity, localPos, newInfo);
+                    ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
                 }
 
                 // 播放音效
@@ -364,7 +364,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
                 saveInputs(newNbt, inputs);
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), state, newNbt);
-                updateContraptionData(contraptionEntity, localPos, newInfo);
+                ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
 
                 // 如果是流体汤底，且温度过高，玩家会受到伤害
                 ResourceLocation soupBaseId = ResourceLocation.tryParse(nbt.getString(SOUP_BASE_ID));
@@ -454,7 +454,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
 
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                     info.pos(), state, newNbt);
-            updateContraptionData(contraptionEntity, localPos, newInfo);
+            ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
         }
         return true;
     }
@@ -577,11 +577,4 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
         }
     }
 
-    /**
-     * 更新Contraption中的方块数据
-     */
-    private void updateContraptionData(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                       StructureTemplate.StructureBlockInfo newInfo) {
-        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
-    }
 }

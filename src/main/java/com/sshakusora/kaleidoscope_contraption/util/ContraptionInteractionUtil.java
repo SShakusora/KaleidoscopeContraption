@@ -10,7 +10,9 @@ import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -274,5 +276,44 @@ public class ContraptionInteractionUtil {
      */
     public static AABB recalculateBounds(AbstractContraptionEntity contraptionEntity) {
         return ContraptionBoundsUtil.recalculateBounds(contraptionEntity.getContraption());
+    }
+
+    /**
+     * 在Contraption位置生成掉落物给玩家
+     */
+    public static void dropItemToPlayer(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
+                                        Player player, ItemStack stack) {
+        if (contraptionEntity.level().isClientSide || stack.isEmpty()) {
+            return;
+        }
+
+        Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
+        ItemEntity itemEntity = new ItemEntity(
+                contraptionEntity.level(),
+                globalPos.x,
+                globalPos.y + 0.5,
+                globalPos.z,
+                stack
+        );
+        itemEntity.setDefaultPickUpDelay();
+        contraptionEntity.level().addFreshEntity(itemEntity);
+    }
+
+    /**
+     * 在Contraption位置弹出物品（模拟Block.popResource）
+     */
+    public static void popResource(AbstractContraptionEntity contraptionEntity, BlockPos localPos, ItemStack stack) {
+        if (contraptionEntity.level().isClientSide || stack.isEmpty()) {
+            return;
+        }
+        Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
+        ItemEntity entity = new ItemEntity(
+                contraptionEntity.level(),
+                globalPos.x,
+                globalPos.y - 0.25,
+                globalPos.z,
+                stack, 0, 0.1, 0);
+        entity.setDefaultPickUpDelay();
+        contraptionEntity.level().addFreshEntity(entity);
     }
 }
