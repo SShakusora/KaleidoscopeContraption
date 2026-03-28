@@ -97,21 +97,20 @@ public class KCInteractionBehaviours {
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.OIL_POT.get(), new OilPotBlockMovingInteraction());
 
         // 注册椅子的交互行为
-//        ChairBlockMovingInteraction chairInteraction = new ChairBlockMovingInteraction();
-//        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_OAK.get(), chairInteraction);
-//        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_SPRUCE.get(), chairInteraction);
-//        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_ACACIA.get(), chairInteraction);
-//        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_BAMBOO.get(), chairInteraction);
-//        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_BIRCH.get(), chairInteraction);
-//        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_CHERRY.get(), chairInteraction);
-//        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_CRIMSON.get(), chairInteraction);
-//        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_DARK_OAK.get(), chairInteraction);
-//        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_JUNGLE.get(), chairInteraction);
-//        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_MANGROVE.get(), chairInteraction);
-//        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_WARPED.get(), chairInteraction);
+        SeatInteractionBehaviour seatInteractionBehaviour = new SeatInteractionBehaviour();
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_OAK.get(), seatInteractionBehaviour);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_SPRUCE.get(), seatInteractionBehaviour);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_ACACIA.get(), seatInteractionBehaviour);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_BAMBOO.get(), seatInteractionBehaviour);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_BIRCH.get(), seatInteractionBehaviour);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_CHERRY.get(), seatInteractionBehaviour);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_CRIMSON.get(), seatInteractionBehaviour);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_DARK_OAK.get(), seatInteractionBehaviour);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_JUNGLE.get(), seatInteractionBehaviour);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_MANGROVE.get(), seatInteractionBehaviour);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_WARPED.get(), seatInteractionBehaviour);
 
         // 注册厨娘凳的交互行为
-        SeatInteractionBehaviour seatInteractionBehaviour = new SeatInteractionBehaviour();
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.COOK_STOOL_OAK.get(), seatInteractionBehaviour);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.COOK_STOOL_SPRUCE.get(), seatInteractionBehaviour);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.COOK_STOOL_ACACIA.get(), seatInteractionBehaviour);
