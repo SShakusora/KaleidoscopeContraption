@@ -256,7 +256,7 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
 
         StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                 info.pos(), state, newNbt);
-        ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
+        ContraptionInteractionUtil.updateContraptionDataWithResetRenderer(contraptionEntity, localPos, newInfo);
     }
 
     /**

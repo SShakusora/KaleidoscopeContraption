@@ -93,6 +93,41 @@ public class ContraptionInteractionUtil {
         }
     }
 
+    public static void updateContraptionDataWithResetRenderer(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
+                                                              StructureTemplate.StructureBlockInfo newInfo) {
+        // 更新方块数据
+        contraptionEntity.getContraption().getBlocks().put(localPos, newInfo);
+
+        // 标记为更新，避免重进存档后NBT消失
+        if (newInfo.nbt() != null) {
+            ((ContraptionAccessor) contraptionEntity.getContraption()).getUpdateTags().put(localPos, newInfo.nbt());
+        }
+
+        // 查找并更新actor数据
+        var actors = contraptionEntity.getContraption().getActors();
+        for (MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> actor : actors) {
+            if (actor.getLeft().pos().equals(localPos)) {
+                actor.setLeft(newInfo);
+                break;
+            }
+        }
+
+        // 发送自定义数据包同步NBT数据到客户端
+        if (!contraptionEntity.level().isClientSide) {
+            KCPacketHandler.sendToTracking(
+                    new KCContraptionChangedPacket(
+                            contraptionEntity.getId(),
+                            localPos,
+                            newInfo.state(),
+                            newInfo.nbt(),
+                            null,
+                            true
+                    ),
+                    contraptionEntity
+            );
+        }
+    }
+
     /**
      * 从Contraption中移除一个方块，包括从blocks、interactors、actors中移除，并更新bounds
      */

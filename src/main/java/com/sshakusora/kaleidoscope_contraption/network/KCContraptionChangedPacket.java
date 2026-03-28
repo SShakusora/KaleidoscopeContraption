@@ -34,13 +34,19 @@ public class KCContraptionChangedPacket {
     private final BlockState newState;
     private final CompoundTag newNbt;
     private final AABB updatedBounds;
+    private final boolean needResetRender;
 
-    public KCContraptionChangedPacket(int entityId, BlockPos localPos, BlockState newState, CompoundTag newNbt, AABB updatedBounds) {
+    public KCContraptionChangedPacket(int entityId, BlockPos localPos, BlockState newState, CompoundTag newNbt, AABB updatedBounds, Boolean needResetRender) {
         this.entityId = entityId;
         this.localPos = localPos;
         this.newState = newState;
         this.newNbt = newNbt;
         this.updatedBounds = updatedBounds;
+        this.needResetRender = needResetRender;
+    }
+
+    public KCContraptionChangedPacket(int entityId, BlockPos localPos, BlockState newState, CompoundTag newNbt, AABB updatedBounds) {
+        this(entityId, localPos, newState, newNbt, updatedBounds, false);
     }
 
     public KCContraptionChangedPacket(int entityId, BlockPos localPos, BlockState newState, CompoundTag newNbt) {
@@ -58,6 +64,7 @@ public class KCContraptionChangedPacket {
             boundsWrapper.put("Bounds", NBTHelper.writeAABB(packet.updatedBounds));
             buffer.writeNbt(boundsWrapper);
         }
+        buffer.writeBoolean(packet.needResetRender);
     }
 
     public static KCContraptionChangedPacket decode(FriendlyByteBuf buffer) {
@@ -75,7 +82,8 @@ public class KCContraptionChangedPacket {
                 updatedBounds = NBTHelper.readAABB(boundsTag);
             }
         }
-        return new KCContraptionChangedPacket(entityId, localPos, newState, newNbt, updatedBounds);
+        boolean needResetRender = buffer.readBoolean();
+        return new KCContraptionChangedPacket(entityId, localPos, newState, newNbt, updatedBounds, needResetRender);
     }
 
     public static void handle(KCContraptionChangedPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
@@ -175,7 +183,8 @@ public class KCContraptionChangedPacket {
             }
 
             // 更新方块实体渲染
-            contraptionEntity.getContraption().resetClientContraption();
+            if (packet.needResetRender)
+                contraptionEntity.getContraption().resetClientContraption();
 
             // 更新bounds - 优先使用服务端同步的bounds
             boolean boundsUpdated = false;
