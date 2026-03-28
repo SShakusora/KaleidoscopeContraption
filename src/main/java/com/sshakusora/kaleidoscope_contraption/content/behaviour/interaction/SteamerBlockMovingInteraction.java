@@ -56,9 +56,7 @@ public class SteamerBlockMovingInteraction extends MovingInteractionBehaviour {
 
         // 处理按下移除键取下蒸笼
         if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
-            if (removeSteamerBlock(player, contraptionEntity, localPos, activeHand)) {
-                return true;
-            }
+            return removeSteamerBlock(player, contraptionEntity, localPos, activeHand);
         }
 
         CompoundTag nbt = info.nbt();

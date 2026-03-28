@@ -3,7 +3,11 @@ package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.decoration.TableBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.food.FoodBiteBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.food.FoodBiteOneByTwoBlock;
+import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
+import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
+import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
+import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -13,12 +17,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.world.phys.AABB;
 
-/**
- * FoodBiteOneByTwoBlock 的 Contraption 交互行为
- * 这是一个 1x2 的食物方块，由 LEFT 和 RIGHT 两个部分组成
- * 交互逻辑需要转发到 LEFT 位置处理
- */
 public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingInteraction {
 
     @Override
@@ -71,6 +71,8 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
             return handleReplacementOrRemoval(player, activeHand, leftPos, rightPos, contraptionEntity, leftInfo, rightInfo);
         }
 
+        if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) return false;
+
         // 执行食用逻辑（只执行一次）
         if (!eatFood(player, foodBlock, contraptionEntity, leftPos)) {
             return false;
@@ -114,6 +116,8 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
 
             Direction facing = leftInfo.state().getValue(FoodBiteBlock.FACING);
 
+            AABB updatedBounds;
+            
             if (newFoodBlock instanceof FoodBiteOneByTwoBlock) {
                 // 新方块也是 1x2，替换为新的 1x2
                 BlockState newRightState = newFoodBlock.defaultBlockState()
@@ -128,8 +132,19 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
                 StructureTemplate.StructureBlockInfo newRightInfo = new StructureTemplate.StructureBlockInfo(rightPos, newRightState, null);
                 StructureTemplate.StructureBlockInfo newLeftInfo = new StructureTemplate.StructureBlockInfo(leftPos, newLeftState, null);
 
-                ContraptionInteractionUtil.updateContraptionData(contraptionEntity, rightPos, newRightInfo);
-                ContraptionInteractionUtil.updateContraptionData(contraptionEntity, leftPos, newLeftInfo);
+                // 注册交互行为
+                MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(newRightState);
+                if (interactionBehaviour != null) {
+                    contraptionEntity.getContraption().getInteractors().put(rightPos, interactionBehaviour);
+                    contraptionEntity.getContraption().getInteractors().put(leftPos, interactionBehaviour);
+                }
+
+                // 更新 bounds
+                updatedBounds = ContraptionInteractionUtil.updateBounds(contraptionEntity, rightPos);
+                updatedBounds = ContraptionInteractionUtil.updateBounds(contraptionEntity, leftPos);
+
+                ContraptionInteractionUtil.updateContraptionDataWithBound(contraptionEntity, rightPos, newRightInfo, updatedBounds);
+                ContraptionInteractionUtil.updateContraptionDataWithBound(contraptionEntity, leftPos, newLeftInfo, updatedBounds);
             } else {
                 // 新方块是 1x1，移除 1x2 并放置 1x1 在 LEFT 位置
                 ContraptionInteractionUtil.removeBlockFromContraption(contraptionEntity, rightPos);
@@ -139,11 +154,30 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
                         .setValue(FoodBiteBlock.FACING, facing);
 
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(leftPos, newState, null);
+                
+                // 注册交互行为
+                MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(newState);
+                if (interactionBehaviour != null) {
+                    contraptionEntity.getContraption().getInteractors().put(leftPos, interactionBehaviour);
+                }
+
                 ContraptionInteractionUtil.updateContraptionData(contraptionEntity, leftPos, newInfo);
 
                 // 更新 bounds
-                var updatedBounds = ContraptionInteractionUtil.recalculateBounds(contraptionEntity);
+                updatedBounds = ContraptionInteractionUtil.recalculateBounds(contraptionEntity);
                 ContraptionInteractionUtil.syncBlockRemoval(contraptionEntity, rightPos, updatedBounds);
+                
+                // 同步新方块到客户端
+                KCPacketHandler.sendToTracking(
+                        new KCContraptionChangedPacket(
+                                contraptionEntity.getId(),
+                                leftPos,
+                                newInfo.state(),
+                                newInfo.nbt(),
+                                updatedBounds
+                        ),
+                        contraptionEntity
+                );
             }
 
             // 消耗物品

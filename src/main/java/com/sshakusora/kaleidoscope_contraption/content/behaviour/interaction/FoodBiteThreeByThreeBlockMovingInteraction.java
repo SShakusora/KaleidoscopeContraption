@@ -10,11 +10,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
-/**
- * FoodBiteThreeByThreeBlock 的 Contraption 交互行为
- * 这是一个 3x3 的食物方块，由 NinePart 的 9 个部分组成
- * 交互逻辑需要转发到 CENTER 位置处理
- */
 public class FoodBiteThreeByThreeBlockMovingInteraction extends FoodBiteBlockMovingInteraction {
 
     @Override
