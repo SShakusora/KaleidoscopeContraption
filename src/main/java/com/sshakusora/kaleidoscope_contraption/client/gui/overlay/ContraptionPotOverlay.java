@@ -2,6 +2,8 @@ package com.sshakusora.kaleidoscope_contraption.client.gui.overlay;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
+import com.simibubi.create.content.contraptions.ContraptionHandler;
+import com.simibubi.create.content.contraptions.ContraptionHandlerClient;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -17,10 +19,13 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.gui.overlay.ForgeGui;
 import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
+import java.lang.ref.WeakReference;
+import java.util.Collection;
 import java.util.Optional;
 
 public class ContraptionPotOverlay implements IGuiOverlay {
@@ -93,90 +98,59 @@ public class ContraptionPotOverlay implements IGuiOverlay {
 
     /**
      * 查找玩家视线范围内的Contraption PotBlock
+     * 参考 Create 的 rightClickingOnContraptionsGetsHandledLocally 实现
      */
     private Optional<PotBlockTarget> findTargetedPotBlock(Minecraft minecraft, Vec3 eyePos, Vec3 endPos, float partialTick) {
         if (minecraft.level == null) {
             return Optional.empty();
         }
 
+        // 创建射线包围盒，与 Create 保持一致
+        AABB aabb = new AABB(eyePos, endPos).inflate(16);
+
+        // 使用 ContraptionHandler.loadedContraptions 获取已加载的 Contraption，更高效
+        Collection<WeakReference<AbstractContraptionEntity>> contraptions =
+            ContraptionHandler.loadedContraptions.get(minecraft.level).values();
+
         PotBlockTarget closestTarget = null;
         double closestDistance = Double.MAX_VALUE;
 
-        // 遍历世界中所有的Contraption实体
-        for (var entity : minecraft.level.entitiesForRendering()) {
-            if (!(entity instanceof AbstractContraptionEntity contraptionEntity)) {
+        for (WeakReference<AbstractContraptionEntity> ref : contraptions) {
+            AbstractContraptionEntity contraptionEntity = ref.get();
+            if (contraptionEntity == null) {
                 continue;
             }
 
-            // 检查视线是否与Contraption的包围盒相交
-            AABB contraptionBounds = contraptionEntity.getBoundingBox();
-            if (contraptionBounds == null) {
+            // 检查包围盒是否相交，与 Create 保持一致
+            if (!contraptionEntity.getBoundingBox().intersects(aabb)) {
                 continue;
             }
 
-            // 缩小包围盒以符合视觉范围
-            AABB expandedBounds = contraptionBounds.inflate(-0.8);
-            if (expandedBounds.clip(eyePos, endPos).isEmpty()) {
+            // 使用 Create 的 rayTraceContraption 进行精确射线检测
+            BlockHitResult hitResult = ContraptionHandlerClient.rayTraceContraption(eyePos, endPos, contraptionEntity);
+            if (hitResult == null) {
                 continue;
             }
 
-            // 将视线转换到Contraption的本地坐标系
-            Vec3 localEyePos = contraptionEntity.toLocalVector(eyePos, partialTick);
-            Vec3 localEndPos = contraptionEntity.toLocalVector(endPos, partialTick);
+            BlockPos hitLocalPos = hitResult.getBlockPos();
+            StructureTemplate.StructureBlockInfo info = contraptionEntity.getContraption().getBlocks().get(hitLocalPos);
 
-            // 在Contraption的本地坐标系中进行射线检测
-            BlockPos hitLocalPos = raycastContraptionPotBlocks(contraptionEntity, localEyePos, localEndPos);
-            if (hitLocalPos == null) {
+            // 只处理 PotBlock
+            if (info == null || !(info.state().getBlock() instanceof PotBlock)) {
                 continue;
             }
 
-            // 计算距离
-            Vec3 globalHitPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(hitLocalPos), partialTick);
-            double distance = eyePos.distanceToSqr(globalHitPos);
-
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                StructureTemplate.StructureBlockInfo info = contraptionEntity.getContraption().getBlocks().get(hitLocalPos);
-                closestTarget = new PotBlockTarget(contraptionEntity, hitLocalPos, info);
+            // 计算距离，与 Create 保持一致
+            double distance = contraptionEntity.toGlobalVector(hitResult.getLocation(), 1).distanceTo(eyePos);
+            if (distance > closestDistance) {
+                continue;
             }
+
+            closestDistance = distance;
+            closestTarget = new PotBlockTarget(contraptionEntity, hitLocalPos, info);
         }
 
         return Optional.ofNullable(closestTarget);
-    }
-
-    /**
-     * 在Contraption的本地坐标系中进行射线检测，返回命中的PotBlock位置
-     */
-    private BlockPos raycastContraptionPotBlocks(AbstractContraptionEntity contraptionEntity, Vec3 localStart, Vec3 localEnd) {
-        var blocks = contraptionEntity.getContraption().getBlocks();
-        BlockPos closestPos = null;
-        double closestDistance = Double.MAX_VALUE;
-
-        // 遍历Contraption中的所有方块进行射线检测
-        for (var entry : blocks.entrySet()) {
-            BlockPos pos = entry.getKey();
-            StructureTemplate.StructureBlockInfo info = entry.getValue();
-
-            // 只检测PotBlock
-            if (!(info.state().getBlock() instanceof PotBlock)) {
-                continue;
-            }
-
-            // 创建方块的AABB
-            AABB blockAABB = new AABB(pos);
-
-            // 检测射线是否与方块相交
-            var intersection = blockAABB.clip(localStart, localEnd);
-            if (intersection.isPresent()) {
-                double distance = localStart.distanceToSqr(intersection.get());
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closestPos = pos;
-                }
-            }
-        }
-
-        return closestPos;
     }
 
     private static void drawWordWrap(GuiGraphics graphics, Font font, MutableComponent text, int pX, int pY, int color) {

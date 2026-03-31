@@ -1,6 +1,8 @@
 package com.sshakusora.kaleidoscope_contraption.client.input;
 
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
+import com.simibubi.create.content.contraptions.ContraptionHandler;
+import com.simibubi.create.content.contraptions.ContraptionHandlerClient;
 import com.sshakusora.kaleidoscope_contraption.KaleidoscopeContraption;
 import com.sshakusora.kaleidoscope_contraption.client.init.ClientSetupEvent;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
@@ -9,11 +11,15 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+
+import java.lang.ref.WeakReference;
+import java.util.Collection;
 
 /**
  * 客户端按键输入处理器
@@ -51,7 +57,7 @@ public class KeyInputHandler {
 
     /**
      * 在客户端遍历所有ContraptionEntity，找到玩家指向的目标
-     * 参考 ContraptionPotOverlay.findTargetedPotBlock 的实现
+     * 参考 Create 的 rightClickingOnContraptionsGetsHandledLocally 实现
      */
     private static TargetResult findTargetContraption(Minecraft mc, LocalPlayer player) {
         // 计算玩家的视线
@@ -59,47 +65,43 @@ public class KeyInputHandler {
         Vec3 lookVec = player.getViewVector(1.0f);
         Vec3 endPos = eyePos.add(lookVec.x * DEFAULT_REACH_DISTANCE, lookVec.y * DEFAULT_REACH_DISTANCE, lookVec.z * DEFAULT_REACH_DISTANCE);
 
+        // 创建射线包围盒，与 Create 保持一致
+        AABB aabb = new AABB(eyePos, endPos).inflate(16);
+
+        // 使用 ContraptionHandler.loadedContraptions 获取已加载的 Contraption，更高效
+        Collection<WeakReference<AbstractContraptionEntity>> contraptions =
+            ContraptionHandler.loadedContraptions.get(mc.level).values();
+
         BlockPos targetPos = null;
         AbstractContraptionEntity targetContraption = null;
-        double closestDistanceSqr = Double.MAX_VALUE;
+        double bestDistance = Double.MAX_VALUE;
 
-        // 使用 entitiesForRendering() 遍历世界中所有的Contraption实体
-        for (var entity : mc.level.entitiesForRendering()) {
-            if (!(entity instanceof AbstractContraptionEntity contraptionEntity)) {
+        for (WeakReference<AbstractContraptionEntity> ref : contraptions) {
+            AbstractContraptionEntity contraptionEntity = ref.get();
+            if (contraptionEntity == null) {
                 continue;
             }
 
-            // 检查视线是否与Contraption的包围盒相交
-            AABB contraptionBounds = contraptionEntity.getBoundingBox();
-            if (contraptionBounds == null) {
+            // 检查包围盒是否相交，与 Create 保持一致
+            if (!contraptionEntity.getBoundingBox().intersects(aabb)) {
                 continue;
             }
 
-            // 缩小包围盒以符合视觉范围
-            AABB expandedBounds = contraptionBounds.inflate(-0.8);
-            if (expandedBounds.clip(eyePos, endPos).isEmpty()) {
+            // 使用 Create 的 rayTraceContraption 进行精确射线检测
+            BlockHitResult hitResult = ContraptionHandlerClient.rayTraceContraption(eyePos, endPos, contraptionEntity);
+            if (hitResult == null) {
                 continue;
             }
 
-            // 将视线转换到Contraption的本地坐标系
-            Vec3 localEyePos = contraptionEntity.toLocalVector(eyePos, 1.0f);
-            Vec3 localEndPos = contraptionEntity.toLocalVector(endPos, 1.0f);
-
-            // 在Contraption的本地坐标系中进行射线检测
-            BlockPos hitLocalPos = raycastContraptionBlocks(contraptionEntity, localEyePos, localEndPos);
-            if (hitLocalPos == null) {
+            // 计算距离，找到最近的，与 Create 保持一致
+            double distance = contraptionEntity.toGlobalVector(hitResult.getLocation(), 1).distanceTo(eyePos);
+            if (distance > bestDistance) {
                 continue;
             }
 
-            // 计算距离，找到最近的
-            Vec3 globalHitPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(hitLocalPos), 1.0f);
-            double distanceSqr = eyePos.distanceToSqr(globalHitPos);
-
-            if (distanceSqr < closestDistanceSqr) {
-                closestDistanceSqr = distanceSqr;
-                targetPos = hitLocalPos;
-                targetContraption = contraptionEntity;
-            }
+            bestDistance = distance;
+            targetPos = hitResult.getBlockPos();
+            targetContraption = contraptionEntity;
         }
 
         if (targetPos == null || targetContraption == null) {
@@ -107,31 +109,6 @@ public class KeyInputHandler {
         }
 
         return new TargetResult(targetContraption.getId(), targetPos);
-    }
-
-    /**
-     * 在Contraption的本地坐标系中进行射线检测
-     */
-    private static BlockPos raycastContraptionBlocks(AbstractContraptionEntity contraptionEntity, Vec3 localStart, Vec3 localEnd) {
-        var blocks = contraptionEntity.getContraption().getBlocks();
-        BlockPos closestPos = null;
-        double closestDistSqr = Double.MAX_VALUE;
-
-        for (var entry : blocks.entrySet()) {
-            BlockPos pos = entry.getKey();
-            AABB blockAABB = new AABB(pos);
-
-            var intersection = blockAABB.clip(localStart, localEnd);
-            if (intersection.isPresent()) {
-                double distSqr = localStart.distanceToSqr(intersection.get());
-                if (distSqr < closestDistSqr) {
-                    closestDistSqr = distSqr;
-                    closestPos = pos;
-                }
-            }
-        }
-
-        return closestPos;
     }
 
     /**
