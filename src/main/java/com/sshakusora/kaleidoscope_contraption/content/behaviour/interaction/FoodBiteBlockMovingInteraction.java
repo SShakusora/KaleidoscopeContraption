@@ -6,6 +6,8 @@ import com.github.ysbbbbbb.kaleidoscopecookery.block.food.FoodBiteOneByTwoBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.food.FoodBiteThreeByThreeBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.NinePart;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.registry.FoodBiteRegistry;
+import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.Quality;
+import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.QualityUtils;
 import com.mojang.datafixers.util.Pair;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
@@ -67,7 +69,7 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
         if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) return false;
 
         // 检查是否可以食用并执行食用逻辑
-        if (!eatFood(player, foodBlock, contraptionEntity, localPos)) {
+        if (!eatFood(player, foodBlock, state, contraptionEntity, localPos)) {
             return false;
         }
 
@@ -113,7 +115,8 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
                 // 普通 1x1 方块替换
                 BlockState newState = newFoodBlock.defaultBlockState()
                         .setValue(newFoodBlock.getBites(), 0)
-                        .setValue(FoodBiteBlock.FACING, oldState.getValue(FoodBiteBlock.FACING));
+                        .setValue(FoodBiteBlock.FACING, oldState.getValue(FoodBiteBlock.FACING))
+                        .setValue(FoodBiteBlock.QUALITY, getQualityId(itemInHand));
 
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         oldInfo.pos(), newState, oldInfo.nbt());
@@ -240,12 +243,14 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
         BlockState rightState = newFoodBlock.defaultBlockState()
                 .setValue(newFoodBlock.getBites(), 0)
                 .setValue(FoodBiteBlock.FACING, facing)
+                .setValue(FoodBiteBlock.QUALITY, getQualityId(itemInHand))
                 .setValue(FoodBiteOneByTwoBlock.POSITION, FoodBiteOneByTwoBlock.RIGHT);
 
         // LEFT 位置的状态
         BlockState leftState = newFoodBlock.defaultBlockState()
                 .setValue(newFoodBlock.getBites(), 0)
                 .setValue(FoodBiteBlock.FACING, facing)
+                .setValue(FoodBiteBlock.QUALITY, getQualityId(itemInHand))
                 .setValue(FoodBiteOneByTwoBlock.POSITION, FoodBiteOneByTwoBlock.LEFT);
 
         StructureTemplate.StructureBlockInfo newRightInfo = new StructureTemplate.StructureBlockInfo(rightPos, rightState, null);
@@ -307,6 +312,7 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
                 BlockState newState = newFoodBlock.defaultBlockState()
                         .setValue(newFoodBlock.getBites(), 0)
                         .setValue(FoodBiteBlock.FACING, facing)
+                        .setValue(FoodBiteBlock.QUALITY, getQualityId(itemInHand))
                         .setValue(FoodBiteThreeByThreeBlock.PART, part);
 
                 infos[idx] = new StructureTemplate.StructureBlockInfo(pos, newState, null);
@@ -363,7 +369,8 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
                                   BlockState oldState, ItemStack itemInHand, FoodBiteBlock newFoodBlock) {
         BlockState newState = newFoodBlock.defaultBlockState()
                 .setValue(newFoodBlock.getBites(), 0)
-                .setValue(FoodBiteBlock.FACING, oldState.getValue(FoodBiteBlock.FACING));
+                .setValue(FoodBiteBlock.FACING, oldState.getValue(FoodBiteBlock.FACING))
+                .setValue(FoodBiteBlock.QUALITY, getQualityId(itemInHand));
 
         StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(localPos, newState, null);
         ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
@@ -438,22 +445,35 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
 
     /**
      * 检查玩家是否可以食用该食物，并执行食用逻辑
+     *
      * @return 如果成功食用返回 true，否则返回 false
      */
-    protected boolean eatFood(Player player, FoodBiteBlock foodBlock, AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
+    protected boolean eatFood(Player player, FoodBiteBlock foodBlock, BlockState state,
+                              AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
         // 获取食物属性（FoodBiteBlock中的protected字段）
         FoodProperties foodProperties = ((FoodBiteBlockAccessor) foodBlock).getFoodProperties();
         if (foodProperties == null || !player.canEat(foodProperties.canAlwaysEat())) {
             return false;
         }
 
-        // 执行食用逻辑
-        player.getFoodData().eat(foodProperties.getNutrition(), foodProperties.getSaturationModifier());
+        double ratio = 1.0;
+        int qualityId = state.getValue(FoodBiteBlock.QUALITY);
+        if (qualityId != FoodBiteBlock.DEFAULT_QUALITY) {
+            ratio = Quality.BY_ID.apply(qualityId).getRatio();
+        }
+
+        player.getFoodData().eat(
+                (int) Math.round(foodProperties.getNutrition() * ratio),
+                (float) (foodProperties.getSaturationModifier() * ratio));
 
         // 应用食物效果
         for (Pair<MobEffectInstance, Float> pair : foodProperties.getEffects()) {
             if (!contraptionEntity.level().isClientSide && pair.getFirst() != null && contraptionEntity.level().random.nextFloat() < pair.getSecond()) {
-                player.addEffect(new MobEffectInstance(pair.getFirst()));
+                MobEffectInstance effect = pair.getFirst();
+                player.addEffect(new MobEffectInstance(
+                        effect.getEffect(),
+                        (int) Math.round(effect.getDuration() * ratio),
+                        effect.getAmplifier()));
             }
         }
 
@@ -468,6 +488,12 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
         contraptionEntity.level().gameEvent(player, GameEvent.EAT, soundPos);
 
         return true;
+    }
+
+    static int getQualityId(ItemStack stack) {
+        return QualityUtils.hasQuality(stack)
+                ? QualityUtils.getQuality(stack).getId()
+                : FoodBiteBlock.DEFAULT_QUALITY;
     }
 
     /**

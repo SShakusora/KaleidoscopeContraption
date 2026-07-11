@@ -1,12 +1,19 @@
 package com.sshakusora.kaleidoscope_contraption.content.behaviour.movement;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.StockpotBlock;
+import com.github.ysbbbbbb.kaleidoscopecookery.client.particle.StockpotParticleOptions;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.container.StockpotContainer;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.StockpotRecipe;
+import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.StockpotVisuals;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.serializer.StockpotRecipeSerializer;
+import com.github.ysbbbbbb.kaleidoscopecookery.crafting.soupbase.SoupBaseManager;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModParticles;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModRecipes;
+import com.github.ysbbbbbb.kaleidoscopecookery.init.ModSounds;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModSoupBases;
+import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.Quality;
+import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.QualityEvaluator;
+import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.QualityUtils;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionDataUtil;
@@ -17,7 +24,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.ContainerHelper;
@@ -136,29 +142,40 @@ public class StockpotBlockMovementBehaviour implements MovementBehaviour {
 
         StockpotContainer container = new StockpotContainer(inputs, soupBaseId);
 
-        // 匹配配方
-        var recipeOptional = context.world.getRecipeManager().getRecipeFor(ModRecipes.STOCKPOT_RECIPE, container, context.world);
-
         CompoundTag newNbt = nbt.copy();
         newNbt.putInt(STATUS, COOKING);
 
-        recipeOptional.ifPresentOrElse(recipe -> {
-            // 如果合成表符合
-            newNbt.putString(RECIPE_ID, recipe.getId().toString());
-            newNbt.putString(CARRIER, recipe.carrier().toJson().toString());
-            newNbt.put(RESULT, recipe.assemble(container, context.world.registryAccess()).serializeNBT());
-            newNbt.putInt(CURRENT_TICK, recipe.time());
-            newNbt.putInt(TAKEOUT_COUNT, Math.min(recipe.getResultItem(context.world.registryAccess()).getCount(), StockpotRecipeSerializer.DEFAULT_TIME));
-        }, () -> {
-            // 不符合，进入迷之炖菜阶段
-            newNbt.putString(RECIPE_ID, StockpotRecipeSerializer.EMPTY_ID.toString());
-            newNbt.putString(CARRIER, Ingredient.of(Items.BOWL).toJson().toString());
-            newNbt.put(RESULT, new ItemStack(Items.SUSPICIOUS_STEW).serializeNBT());
-            newNbt.putInt(CURRENT_TICK, StockpotRecipeSerializer.DEFAULT_TIME);
-            newNbt.putInt(TAKEOUT_COUNT, 1);
-        });
+        var manager = context.world.getRecipeManager();
+        var recipe = manager.getRecipeFor(ModRecipes.STOCKPOT_RECIPE, container, context.world);
+        if (recipe.isPresent()) {
+            ItemStack result = recipe.get().assemble(container, context.world.registryAccess());
+            applyRecipe(newNbt, recipe.get().getId(), recipe.get().carrier(), result, recipe.get().time());
+        } else {
+            var flexRecipe = manager.getRecipeFor(ModRecipes.FLEX_STOCKPOT_RECIPE, container, context.world);
+            if (flexRecipe.isPresent()) {
+                ItemStack result = flexRecipe.get().assemble(container, context.world.registryAccess());
+                if (context.world instanceof ServerLevel serverLevel) {
+                    Quality quality = QualityEvaluator.evaluate(
+                            inputs, flexRecipe.get().ingredients(), flexRecipe.get().getId(), serverLevel.getSeed());
+                    QualityUtils.setQuality(result, quality);
+                }
+                applyRecipe(newNbt, flexRecipe.get().getId(), flexRecipe.get().carrier(), result, flexRecipe.get().time());
+            } else {
+                applyRecipe(newNbt, StockpotRecipeSerializer.EMPTY_ID, Ingredient.of(Items.BOWL),
+                        new ItemStack(Items.SUSPICIOUS_STEW), StockpotRecipeSerializer.DEFAULT_TIME);
+            }
+        }
 
         ContraptionDataUtil.updateContraptionData(context, state, newNbt, true);
+    }
+
+    private void applyRecipe(CompoundTag nbt, ResourceLocation recipeId, Ingredient carrier,
+                             ItemStack result, int time) {
+        nbt.putString(RECIPE_ID, recipeId.toString());
+        nbt.putString(CARRIER, carrier.toJson().toString());
+        nbt.put(RESULT, result.serializeNBT());
+        nbt.putInt(CURRENT_TICK, time);
+        nbt.putInt(TAKEOUT_COUNT, Math.min(result.getCount(), 9));
     }
 
     /**
@@ -188,7 +205,7 @@ public class StockpotBlockMovementBehaviour implements MovementBehaviour {
         float pitch = hasLid ? 0.1f + context.world.random.nextFloat() * 0.05f : 1f + context.world.random.nextFloat() * 0.1f;
 
         context.world.playSound(null, soundPos,
-                SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_AMBIENT, SoundSource.BLOCKS, volume, pitch);
+                ModSounds.BLOCK_STOCKPOT.get(), SoundSource.BLOCKS, volume, pitch);
     }
 
     /**
@@ -218,14 +235,45 @@ public class StockpotBlockMovementBehaviour implements MovementBehaviour {
         Vec3 globalPos = getGlobalPos(context);
         RandomSource random = serverLevel.random;
 
-        // 这里简化处理，使用普通气泡粒子
-        serverLevel.sendParticles(ModParticles.COOKING.get(),
+        int color = getBubbleColor(context, nbt);
+        serverLevel.sendParticles(new StockpotParticleOptions(Vec3.fromRGB24(color).toVector3f(), 1.0F),
                 globalPos.x - 0.25 + (random.nextFloat() * 0.5F),
                 globalPos.y - 0.25,
                 globalPos.z - 0.25 + (random.nextFloat() * 0.5F),
                 2,
                 (random.nextFloat() - 0.5) * 0.1F, 0,
                 (random.nextFloat() - 0.5) * 0.1F, 0);
+    }
+
+    private int getBubbleColor(MovementContext context, CompoundTag nbt) {
+        int status = nbt.getInt(STATUS);
+        ResourceLocation recipeId = ResourceLocation.tryParse(nbt.getString(RECIPE_ID));
+        if (recipeId != null && !recipeId.equals(StockpotRecipeSerializer.EMPTY_ID)) {
+            StockpotVisuals visuals = null;
+            StockpotRecipe recipe = context.world.getRecipeManager()
+                    .getAllRecipesFor(ModRecipes.STOCKPOT_RECIPE).stream()
+                    .filter(candidate -> candidate.getId().equals(recipeId))
+                    .findFirst().orElse(null);
+            if (recipe != null) {
+                visuals = recipe.visuals();
+            } else {
+                var flexRecipe = context.world.getRecipeManager()
+                        .getAllRecipesFor(ModRecipes.FLEX_STOCKPOT_RECIPE).stream()
+                        .filter(candidate -> candidate.getId().equals(recipeId))
+                        .findFirst().orElse(null);
+                if (flexRecipe != null) {
+                    visuals = flexRecipe.visuals();
+                }
+            }
+            if (visuals != null) {
+                if (status == COOKING) return visuals.cookingBubbleColor();
+                if (status == FINISHED) return visuals.finishedBubbleColor();
+            }
+        }
+
+        ResourceLocation soupBaseId = ResourceLocation.tryParse(nbt.getString(SOUP_BASE_ID));
+        var soupBase = SoupBaseManager.getSoupBase(soupBaseId);
+        return soupBase != null ? soupBase.getBubbleColor() : 0xFFFFFF;
     }
 
     /**

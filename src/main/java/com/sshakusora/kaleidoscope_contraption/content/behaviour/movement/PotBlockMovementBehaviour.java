@@ -5,6 +5,9 @@ import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.PotRecipe;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModParticles;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModRecipes;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.registry.FoodBiteRegistry;
+import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.Quality;
+import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.QualityEvaluator;
+import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.QualityUtils;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionDataUtil;
@@ -130,10 +133,11 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
 
     /**
      * 放食材阶段tick
+     *
      * @return 状态是否发生改变
      */
     private boolean tickPutIngredient(MovementContext context, BlockState state, CompoundTag nbt,
-                                       StructureTemplate.StructureBlockInfo info, int currentTick, RandomSource random) {
+                                      StructureTemplate.StructureBlockInfo info, int currentTick, RandomSource random) {
         // 每10tick产生烹饪粒子效果
         if (currentTick % 10 == 0 && context.world instanceof ServerLevel serverLevel) {
             Vec3 globalPos = getGlobalPos(context);
@@ -167,10 +171,11 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
 
     /**
      * 烹饪阶段tick
+     *
      * @return 状态是否发生改变
      */
     private boolean tickCooking(MovementContext context, BlockState state, CompoundTag nbt,
-                                 StructureTemplate.StructureBlockInfo info, int currentTick, RandomSource random) {
+                                StructureTemplate.StructureBlockInfo info, int currentTick, RandomSource random) {
         if (currentTick == 0) {
             // 烹饪完成
             playExtinguishSound(context);
@@ -204,10 +209,11 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
 
     /**
      * 完成阶段tick
+     *
      * @return 状态是否发生改变
      */
     private boolean tickFinished(MovementContext context, BlockState state, CompoundTag nbt,
-                                  StructureTemplate.StructureBlockInfo info, int currentTick, RandomSource random) {
+                                 StructureTemplate.StructureBlockInfo info, int currentTick, RandomSource random) {
         // 每10tick产生完成粒子效果
         if (currentTick % 10 == 0 && context.world instanceof ServerLevel serverLevel) {
             Vec3 globalPos = getGlobalPos(context);
@@ -236,10 +242,11 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
 
     /**
      * 烧焦阶段tick
+     *
      * @return 状态是否发生改变
      */
     private boolean tickBurnt(MovementContext context, BlockState state, CompoundTag nbt,
-                               StructureTemplate.StructureBlockInfo info, int currentTick, RandomSource random) {
+                              StructureTemplate.StructureBlockInfo info, int currentTick, RandomSource random) {
         int particleCount = 10 - currentTick / 5;
 
         // 产生烟雾粒子
@@ -288,27 +295,40 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
         NonNullList<ItemStack> inputs = readInputs(nbt);
         SimpleContainer container = getContainer(inputs);
 
-        // 匹配配方
-        var recipeOptional = context.world.getRecipeManager().getRecipeFor(ModRecipes.POT_RECIPE, container, context.world);
-
         CompoundTag newNbt = nbt.copy();
         newNbt.putInt(STATUS, COOKING);
 
-        recipeOptional.ifPresentOrElse(recipe -> {
-            // 如果合成表符合
-            newNbt.putString(CARRIER, recipe.carrier().toJson().toString());
-            newNbt.put(RESULT, recipe.assemble(container, context.world.registryAccess()).serializeNBT());
-            newNbt.putInt(CURRENT_TICK, recipe.time());
-            newNbt.putInt(STIR_FRY_COUNT, recipe.stirFryCount());
-        }, () -> {
-            // 不符合，进入迷之炒菜阶段
-            newNbt.putString(CARRIER, Ingredient.of(Items.BOWL).toJson().toString());
-            newNbt.put(RESULT, new ItemStack(FoodBiteRegistry.getItem(SUSPICIOUS_STIR_FRY)).serializeNBT());
-            newNbt.putInt(CURRENT_TICK, 10 * 20); // 迷之炒菜时间
-            newNbt.putInt(STIR_FRY_COUNT, 0); // 迷之炒菜不计翻炒次数
-        });
+        var manager = context.world.getRecipeManager();
+        var recipe = manager.getRecipeFor(ModRecipes.POT_RECIPE, container, context.world);
+        if (recipe.isPresent()) {
+            applyRecipe(newNbt, recipe.get().carrier(),
+                    recipe.get().assemble(container, context.world.registryAccess()),
+                    recipe.get().time(), recipe.get().stirFryCount());
+        } else {
+            var flexRecipe = manager.getRecipeFor(ModRecipes.FLEX_POT_RECIPE, container, context.world);
+            if (flexRecipe.isPresent()) {
+                ItemStack result = flexRecipe.get().assemble(container, context.world.registryAccess());
+                if (context.world instanceof ServerLevel serverLevel) {
+                    Quality quality = QualityEvaluator.evaluate(
+                            inputs, flexRecipe.get().ingredients(), flexRecipe.get().getId(), serverLevel.getSeed());
+                    QualityUtils.setQuality(result, quality);
+                }
+                applyRecipe(newNbt, flexRecipe.get().carrier(), result,
+                        flexRecipe.get().time(), flexRecipe.get().stirFryCount());
+            } else {
+                applyRecipe(newNbt, Ingredient.of(Items.BOWL),
+                        new ItemStack(FoodBiteRegistry.getItem(SUSPICIOUS_STIR_FRY)), 10 * 20, 0);
+            }
+        }
 
         ContraptionDataUtil.updateContraptionData(context, state, newNbt, true);
+    }
+
+    private void applyRecipe(CompoundTag nbt, Ingredient carrier, ItemStack result, int time, int stirFryCount) {
+        nbt.putString(CARRIER, carrier.toJson().toString());
+        nbt.put(RESULT, result.serializeNBT());
+        nbt.putInt(CURRENT_TICK, time);
+        nbt.putInt(STIR_FRY_COUNT, stirFryCount);
     }
 
     /**

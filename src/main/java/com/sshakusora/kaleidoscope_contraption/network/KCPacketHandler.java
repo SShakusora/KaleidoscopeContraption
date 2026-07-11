@@ -2,7 +2,6 @@ package com.sshakusora.kaleidoscope_contraption.network;
 
 import com.sshakusora.kaleidoscope_contraption.KaleidoscopeContraption;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraftforge.network.NetworkDirection;
@@ -19,7 +18,7 @@ import java.util.function.Supplier;
 public class KCPacketHandler {
     private static final String PROTOCOL_VERSION = "1";
     public static final SimpleChannel INSTANCE = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation(KaleidoscopeContraption.MOD_ID, "main"),
+            KaleidoscopeContraption.asResource("main"),
             () -> PROTOCOL_VERSION,
             PROTOCOL_VERSION::equals,
             PROTOCOL_VERSION::equals

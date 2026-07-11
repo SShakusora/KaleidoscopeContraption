@@ -20,10 +20,8 @@ public class KCInteractionBehaviours {
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.DONGPO_PORK), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.FONDANT_SPIDER_EYE), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.CHORUS_FRIED_EGG), foodInteraction);
-        MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.BRAISED_FISH), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.GOLDEN_SALAD), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.SPICY_CHICKEN), foodInteraction);
-        MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.YAKITORI), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.PAN_SEARED_KNIGHT_STEAK), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.STARGAZY_PIE), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.SWEET_AND_SOUR_ENDER_PEARLS), foodInteraction);
@@ -35,7 +33,6 @@ public class KCInteractionBehaviours {
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.DESERT_STYLE_SASHIMI), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.TUNDRA_STYLE_SASHIMI), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.COLD_STYLE_SASHIMI), foodInteraction);
-        MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.SHENGJIAN_MANTOU), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.CANDIED_POTATO), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.DOUGH_DROP_SOUP), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.STUFFED_TIGER_SKIN_PEPPER), foodInteraction);
@@ -45,7 +42,6 @@ public class KCInteractionBehaviours {
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.FRIED_CATERPILLAR), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.FRIED_SPRING_ROLL), foodInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.SPICY_BLOOD_STEW), foodInteraction);
-        MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.FRUIT_PLATTER), foodInteraction);
         // 1x2 食物方块使用专门的交互行为
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.BRAISED_PORK_RIBS), oneByTwoInteraction);
         MovingInteractionBehaviour.REGISTRY.register(FoodBiteRegistry.getBlock(FoodBiteRegistry.COLD_ROASTED_MEAT), oneByTwoInteraction);

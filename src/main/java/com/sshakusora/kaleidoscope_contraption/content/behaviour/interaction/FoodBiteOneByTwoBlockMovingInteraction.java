@@ -74,7 +74,7 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
         if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) return false;
 
         // 执行食用逻辑（只执行一次）
-        if (!eatFood(player, foodBlock, contraptionEntity, leftPos)) {
+        if (!eatFood(player, foodBlock, leftInfo.state(), contraptionEntity, leftPos)) {
             return false;
         }
 
@@ -89,8 +89,8 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
      * 处理替换或移除逻辑
      */
     private boolean handleReplacementOrRemoval(Player player, InteractionHand activeHand, BlockPos leftPos, BlockPos rightPos,
-                                                AbstractContraptionEntity contraptionEntity, StructureTemplate.StructureBlockInfo leftInfo,
-                                                StructureTemplate.StructureBlockInfo rightInfo) {
+                                               AbstractContraptionEntity contraptionEntity, StructureTemplate.StructureBlockInfo leftInfo,
+                                               StructureTemplate.StructureBlockInfo rightInfo) {
         // 检查玩家手持的物品
         ItemStack itemInHand = player.getItemInHand(activeHand);
         Block heldBlock = Block.byItem(itemInHand.getItem());
@@ -108,8 +108,8 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
      * 替换食物方块
      */
     private boolean replaceFoodBlock(Player player, AbstractContraptionEntity contraptionEntity, BlockPos leftPos, BlockPos rightPos,
-                                      StructureTemplate.StructureBlockInfo leftInfo, StructureTemplate.StructureBlockInfo rightInfo,
-                                      FoodBiteBlock newFoodBlock, ItemStack itemInHand) {
+                                     StructureTemplate.StructureBlockInfo leftInfo, StructureTemplate.StructureBlockInfo rightInfo,
+                                     FoodBiteBlock newFoodBlock, ItemStack itemInHand) {
         if (!contraptionEntity.level().isClientSide) {
             // 掉落旧方块的战利品
             dropLootItems(leftInfo.state(), contraptionEntity, leftPos);
@@ -117,16 +117,18 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
             Direction facing = leftInfo.state().getValue(FoodBiteBlock.FACING);
 
             AABB updatedBounds;
-            
+
             if (newFoodBlock instanceof FoodBiteOneByTwoBlock) {
                 // 新方块也是 1x2，替换为新的 1x2
                 BlockState newRightState = newFoodBlock.defaultBlockState()
                         .setValue(newFoodBlock.getBites(), 0)
                         .setValue(FoodBiteBlock.FACING, facing)
+                        .setValue(FoodBiteBlock.QUALITY, getQualityId(itemInHand))
                         .setValue(FoodBiteOneByTwoBlock.POSITION, FoodBiteOneByTwoBlock.RIGHT);
                 BlockState newLeftState = newFoodBlock.defaultBlockState()
                         .setValue(newFoodBlock.getBites(), 0)
                         .setValue(FoodBiteBlock.FACING, facing)
+                        .setValue(FoodBiteBlock.QUALITY, getQualityId(itemInHand))
                         .setValue(FoodBiteOneByTwoBlock.POSITION, FoodBiteOneByTwoBlock.LEFT);
 
                 StructureTemplate.StructureBlockInfo newRightInfo = new StructureTemplate.StructureBlockInfo(rightPos, newRightState, null);
@@ -151,10 +153,11 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
 
                 BlockState newState = newFoodBlock.defaultBlockState()
                         .setValue(newFoodBlock.getBites(), 0)
-                        .setValue(FoodBiteBlock.FACING, facing);
+                        .setValue(FoodBiteBlock.FACING, facing)
+                        .setValue(FoodBiteBlock.QUALITY, getQualityId(itemInHand));
 
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(leftPos, newState, null);
-                
+
                 // 注册交互行为
                 MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(newState);
                 if (interactionBehaviour != null) {
@@ -166,7 +169,7 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
                 // 更新 bounds
                 updatedBounds = ContraptionInteractionUtil.recalculateBounds(contraptionEntity);
                 ContraptionInteractionUtil.syncBlockRemoval(contraptionEntity, rightPos, updatedBounds);
-                
+
                 // 同步新方块到客户端
                 KCPacketHandler.sendToTracking(
                         new KCContraptionChangedPacket(
@@ -195,7 +198,7 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
      * 移除食物方块
      */
     private boolean removeFoodBlock(Player player, AbstractContraptionEntity contraptionEntity, BlockPos leftPos, BlockPos rightPos,
-                                     StructureTemplate.StructureBlockInfo leftInfo, StructureTemplate.StructureBlockInfo rightInfo) {
+                                    StructureTemplate.StructureBlockInfo leftInfo, StructureTemplate.StructureBlockInfo rightInfo) {
         // 检查下方是否是 TableBlock
         BlockPos belowLeftPos = leftPos.below();
         BlockPos belowRightPos = rightPos.below();
@@ -204,7 +207,7 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
         StructureTemplate.StructureBlockInfo belowRightInfo = contraptionEntity.getContraption().getBlocks().get(belowRightPos);
 
         boolean isOnTable = (belowLeftInfo != null && belowLeftInfo.state().getBlock() instanceof TableBlock) ||
-                           (belowRightInfo != null && belowRightInfo.state().getBlock() instanceof TableBlock);
+                (belowRightInfo != null && belowRightInfo.state().getBlock() instanceof TableBlock);
 
         if (!isOnTable) {
             return false;
@@ -233,8 +236,8 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
      * 更新两个方块的咬食次数
      */
     private void updateBothBlocksBites(AbstractContraptionEntity contraptionEntity, BlockPos leftPos, BlockPos rightPos,
-                                        StructureTemplate.StructureBlockInfo leftInfo, StructureTemplate.StructureBlockInfo rightInfo,
-                                        FoodBiteOneByTwoBlock foodBlock, int newBites, Direction facing) {
+                                       StructureTemplate.StructureBlockInfo leftInfo, StructureTemplate.StructureBlockInfo rightInfo,
+                                       FoodBiteOneByTwoBlock foodBlock, int newBites, Direction facing) {
         BlockState newLeftState = leftInfo.state().setValue(foodBlock.getBites(), newBites);
         BlockState newRightState = rightInfo.state().setValue(foodBlock.getBites(), newBites);
 

@@ -317,10 +317,11 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
      * 放置普通 1x1 食物方块
      */
     private void placeSingleFoodBlock(Player player, AbstractContraptionEntity contraptionEntity, BlockPos abovePos,
-                                       FoodBiteBlock foodBlock, ItemStack itemInHand) {
+                                      FoodBiteBlock foodBlock, ItemStack itemInHand) {
         BlockState newState = foodBlock.defaultBlockState()
                 .setValue(foodBlock.getBites(), 0)
-                .setValue(FoodBiteBlock.FACING, player.getDirection().getOpposite());
+                .setValue(FoodBiteBlock.FACING, player.getDirection().getOpposite())
+                .setValue(FoodBiteBlock.QUALITY, FoodBiteBlockMovingInteraction.getQualityId(itemInHand));
 
         StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                 abovePos, newState, null);
@@ -362,7 +363,7 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
      * 放置 1x2 食物方块（LEFT 和 RIGHT）
      */
     private void placeOneByTwoFoodBlock(Player player, AbstractContraptionEntity contraptionEntity, BlockPos abovePos,
-                                         FoodBiteOneByTwoBlock foodBlock, ItemStack itemInHand, Direction facing) {
+                                        FoodBiteOneByTwoBlock foodBlock, ItemStack itemInHand, Direction facing) {
         BlockPos rightPos = abovePos;
         BlockPos leftPos = abovePos.relative(facing.getClockWise());
 
@@ -370,12 +371,14 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
         BlockState rightState = foodBlock.defaultBlockState()
                 .setValue(foodBlock.getBites(), 0)
                 .setValue(FoodBiteBlock.FACING, facing)
+                .setValue(FoodBiteBlock.QUALITY, FoodBiteBlockMovingInteraction.getQualityId(itemInHand))
                 .setValue(FoodBiteOneByTwoBlock.POSITION, FoodBiteOneByTwoBlock.RIGHT);
 
         // LEFT 位置的状态
         BlockState leftState = foodBlock.defaultBlockState()
                 .setValue(foodBlock.getBites(), 0)
                 .setValue(FoodBiteBlock.FACING, facing)
+                .setValue(FoodBiteBlock.QUALITY, FoodBiteBlockMovingInteraction.getQualityId(itemInHand))
                 .setValue(FoodBiteOneByTwoBlock.POSITION, FoodBiteOneByTwoBlock.LEFT);
 
         StructureTemplate.StructureBlockInfo rightInfo = new StructureTemplate.StructureBlockInfo(rightPos, rightState, null);
@@ -434,7 +437,7 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
      * 放置 3x3 食物方块（9 个部分）
      */
     private void placeThreeByThreeFoodBlock(Player player, AbstractContraptionEntity contraptionEntity, BlockPos centerPos,
-                                             FoodBiteThreeByThreeBlock foodBlock, ItemStack itemInHand) {
+                                            FoodBiteThreeByThreeBlock foodBlock, ItemStack itemInHand) {
         Direction facing = player.getDirection().getOpposite();
 
         // 计算所有 9 个位置
@@ -451,6 +454,7 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
                 BlockState state = foodBlock.defaultBlockState()
                         .setValue(foodBlock.getBites(), 0)
                         .setValue(FoodBiteBlock.FACING, facing)
+                        .setValue(FoodBiteBlock.QUALITY, FoodBiteBlockMovingInteraction.getQualityId(itemInHand))
                         .setValue(FoodBiteThreeByThreeBlock.PART, part);
 
                 infos[idx] = new StructureTemplate.StructureBlockInfo(pos, state, null);
@@ -504,8 +508,8 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
      * 处理手持ChoppingBoardBlock放置到桌子上方
      */
     private boolean handleChoppingBoardPlacement(Player player, InteractionHand activeHand, BlockPos localPos,
-                                                  AbstractContraptionEntity contraptionEntity, StructureTemplate.StructureBlockInfo info,
-                                                  ItemStack itemInHand) {
+                                                 AbstractContraptionEntity contraptionEntity, StructureTemplate.StructureBlockInfo info,
+                                                 ItemStack itemInHand) {
         // 需要Shift+右键才能放置切菜板
         if (!player.isShiftKeyDown()) {
             return false;
