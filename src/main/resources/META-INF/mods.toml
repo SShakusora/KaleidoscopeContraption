@@ -61,3 +61,17 @@ mandatory = true
 versionRange = "${minecraft_version_range}"
 ordering = "NONE"
 side = "BOTH"
+
+[[dependencies."${mod_id}"]]
+modId = "create"
+mandatory = true
+versionRange = "[6.0.8,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies."${mod_id}"]]
+modId = "kaleidoscope_cookery"
+mandatory = true
+versionRange = "[1.4.1,)"
+ordering = "AFTER"
+side = "BOTH"
