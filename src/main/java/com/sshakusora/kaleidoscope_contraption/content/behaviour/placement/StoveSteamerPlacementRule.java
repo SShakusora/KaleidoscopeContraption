@@ -1,8 +1,10 @@
 package com.sshakusora.kaleidoscope_contraption.content.behaviour.placement;
 
+import com.github.ysbbbbbb.kaleidoscopecookery.advancements.critereon.ModEventTriggerType;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.SteamerBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModBlocks;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModItems;
+import com.github.ysbbbbbb.kaleidoscopecookery.init.ModTrigger;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.sshakusora.kaleidoscope_contraption.api.placement.*;
 import net.minecraft.core.BlockPos;
@@ -13,6 +15,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
 import java.util.List;
@@ -33,6 +36,10 @@ public class StoveSteamerPlacementRule implements ContraptionPlacementRule {
                 .setValue(SteamerBlock.HAS_LID, false)
                 .setValue(SteamerBlock.HAS_BASE, false)
                 .setValue(SteamerBlock.WATERLOGGED, false);
+        if (context.supportInfo().state().hasProperty(BlockStateProperties.LIT)
+                && context.supportInfo().state().getValue(BlockStateProperties.LIT)) {
+            ModTrigger.EVENT.trigger(context.player(), ModEventTriggerType.USE_STEAMER);
+        }
         return single(context, state, createSteamerNbt(context.heldItem()));
     }
 

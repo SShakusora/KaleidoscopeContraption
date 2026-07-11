@@ -1,7 +1,9 @@
 package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 
+import com.github.ysbbbbbb.kaleidoscopecookery.advancements.critereon.ModEventTriggerType;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.StoveBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModItems;
+import com.github.ysbbbbbb.kaleidoscopecookery.init.ModTrigger;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.tag.TagMod;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
@@ -83,6 +85,7 @@ public class StoveBlockMovingInteraction extends SyncedMovingInteractionBehaviou
                             contraptionEntity.level().getRandom().nextFloat() * 0.4F + 0.8F);
                     itemInHand.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(activeHand));
                 }
+                ModTrigger.EVENT.trigger(player, ModEventTriggerType.LIT_THE_STOVE);
             }
             return true;
         }
@@ -153,6 +156,9 @@ public class StoveBlockMovingInteraction extends SyncedMovingInteractionBehaviou
             BlockState newState = state.setValue(BlockStateProperties.LIT, true);
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(info.pos(), newState, info.nbt());
             setContraptionBlockData(contraptionEntity, localPos, newInfo);
+            if (projectile.getOwner() instanceof Player player) {
+                ModTrigger.EVENT.trigger(player, ModEventTriggerType.LIT_THE_STOVE);
+            }
 
             // 查找并更新actor数据
             var actors = contraptionEntity.getContraption().getActors();
