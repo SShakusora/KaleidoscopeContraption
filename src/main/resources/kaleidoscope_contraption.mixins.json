@@ -11,8 +11,7 @@
   ],
   "client": [
     "accessor.ClientContraptionAccessor",
-    "accessor.ContraptionClientAccessor",
-    "client.TeapotBlockEntityRenderMixin"
+    "accessor.ContraptionClientAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
