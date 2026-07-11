@@ -98,7 +98,6 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
         RandomSource random = context.world.random;
 
         // 递减计时器
-        boolean statusChanged = false;
         if (currentTick > 0) {
             currentTick--;
 
@@ -115,19 +114,12 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
             }
         }
 
-        // 根据状态执行不同逻辑，statusChanged表示状态是否发生改变
-        int oldStatus = status;
+        // 各状态处理函数在发生状态转换时自行同步到客户端
         switch (status) {
-            case PUT_INGREDIENT -> statusChanged = tickPutIngredient(context, state, nbt, info, currentTick, random);
-            case COOKING -> statusChanged = tickCooking(context, state, nbt, info, currentTick, random);
-            case FINISHED -> statusChanged = tickFinished(context, state, nbt, info, currentTick, random);
-            case BURNT -> statusChanged = tickBurnt(context, state, nbt, info, currentTick, random);
-        }
-
-        // 如果状态发生改变，需要同步到客户端
-        if (statusChanged && oldStatus != context.contraption.getBlocks().get(context.localPos).nbt().getInt(STATUS)) {
-            StructureTemplate.StructureBlockInfo newInfo = context.contraption.getBlocks().get(context.localPos);
-            ContraptionDataUtil.updateContraptionData(context, newInfo.state(), newInfo.nbt(), true);
+            case PUT_INGREDIENT -> tickPutIngredient(context, state, nbt, info, currentTick, random);
+            case COOKING -> tickCooking(context, state, nbt, info, currentTick, random);
+            case FINISHED -> tickFinished(context, state, nbt, info, currentTick, random);
+            case BURNT -> tickBurnt(context, state, nbt, info, currentTick, random);
         }
     }
 

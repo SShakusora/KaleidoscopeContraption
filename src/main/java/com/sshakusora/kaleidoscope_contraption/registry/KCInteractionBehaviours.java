@@ -99,6 +99,12 @@ public class KCInteractionBehaviours {
         // 注册油壶的交互行为
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.OIL_POT.get(), new OilPotBlockMovingInteraction());
 
+        // 注册 1.4.1 新增互动方块
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BAMBOO_TUBE_RICE.get(), new StackableFoodBlockMovingInteraction());
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.TEAPOT.get(), new TeapotBlockMovingInteraction());
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.MILLSTONE.get(), new MillstoneBlockMovingInteraction());
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.TRASH_CAN.get(), new TrashCanBlockMovingInteraction());
+
         // 注册椅子的交互行为
         SeatInteractionBehaviour seatInteractionBehaviour = new SeatInteractionBehaviour();
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_OAK.get(), seatInteractionBehaviour);

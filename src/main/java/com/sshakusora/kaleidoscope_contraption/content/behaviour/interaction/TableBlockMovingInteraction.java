@@ -33,7 +33,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.items.ItemStackHandler;
 import org.apache.commons.lang3.tuple.Pair;
 
-public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
+public class TableBlockMovingInteraction extends SyncedMovingInteractionBehaviour {
 
     private static final String COLOR_TAG = "CarpetColor";
     private static final String SHOW_ITEMS = "ShowItems";
@@ -326,7 +326,7 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
         StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                 abovePos, newState, null);
 
-        setContraptionBlockData(contraptionEntity, abovePos, newInfo);
+        setContraptionBlockDataLocally(contraptionEntity, abovePos, newInfo);
 
         // 注册交互行为
         MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(newState);
@@ -385,8 +385,8 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
         StructureTemplate.StructureBlockInfo leftInfo = new StructureTemplate.StructureBlockInfo(leftPos, leftState, null);
 
         // 放置两个方块
-        setContraptionBlockData(contraptionEntity, rightPos, rightInfo);
-        setContraptionBlockData(contraptionEntity, leftPos, leftInfo);
+        setContraptionBlockDataLocally(contraptionEntity, rightPos, rightInfo);
+        setContraptionBlockDataLocally(contraptionEntity, leftPos, leftInfo);
 
         // 注册交互行为（只在 RIGHT 位置注册，因为交互会转发到 LEFT）
         MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(rightState);
@@ -466,7 +466,7 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
         AABB updatedBounds = null;
         MovingInteractionBehaviour interactionBehaviour = null;
         for (int i = 0; i < 9; i++) {
-            setContraptionBlockData(contraptionEntity, positions[i], infos[i]);
+            setContraptionBlockDataLocally(contraptionEntity, positions[i], infos[i]);
             updatedBounds = ContraptionInteractionUtil.updateBounds(contraptionEntity, positions[i]);
 
             // 注册交互行为
@@ -548,7 +548,7 @@ public class TableBlockMovingInteraction extends MovingInteractionBehaviour {
                     abovePos, newState, nbt);
 
             // 使用setContraptionBlockData来更新方块数据
-            setContraptionBlockData(contraptionEntity, abovePos, newInfo);
+            setContraptionBlockDataLocally(contraptionEntity, abovePos, newInfo);
 
             // 注册交互行为到interactors地图，使新放置的方块可以被交互
             MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(newState);

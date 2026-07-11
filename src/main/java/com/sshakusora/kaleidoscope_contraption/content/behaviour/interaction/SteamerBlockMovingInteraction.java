@@ -33,7 +33,7 @@ import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.tuple.MutablePair;
 
 
-public class SteamerBlockMovingInteraction extends MovingInteractionBehaviour {
+public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehaviour {
 
     // NBT键名
     private static final String ITEMS_TAG = "Items";
@@ -297,7 +297,7 @@ public class SteamerBlockMovingInteraction extends MovingInteractionBehaviour {
                     abovePos, newState, newNbt);
 
             // 使用setContraptionBlockData来更新方块数据
-            setContraptionBlockData(contraptionEntity, abovePos, newInfo);
+            setContraptionBlockDataLocally(contraptionEntity, abovePos, newInfo);
 
             // 注册交互行为到interactors
             MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(newState);
@@ -327,7 +327,7 @@ public class SteamerBlockMovingInteraction extends MovingInteractionBehaviour {
             BlockState updatedState = state.setValue(SteamerBlock.HAS_LID, false);
             StructureTemplate.StructureBlockInfo updatedInfo = new StructureTemplate.StructureBlockInfo(
                     info.pos(), updatedState, nbt);
-            setContraptionBlockData(contraptionEntity, localPos, updatedInfo);
+            setContraptionBlockDataLocally(contraptionEntity, localPos, updatedInfo);
 
             // 更新下方蒸笼的actor数据
             var actors = contraptionEntity.getContraption().getActors();

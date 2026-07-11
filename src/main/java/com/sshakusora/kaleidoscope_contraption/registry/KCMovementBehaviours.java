@@ -18,6 +18,11 @@ public class KCMovementBehaviours {
         // 注册蒸笼的移动行为（用于处理Tick逻辑）
         MovementBehaviour.REGISTRY.register(ModBlocks.STEAMER.get(), new SteamerBlockMovementBehaviour());
 
+        // 注册 1.4.1 新增方块实体的 tick 行为
+        MovementBehaviour.REGISTRY.register(ModBlocks.TEAPOT.get(), new TeapotBlockMovementBehaviour());
+        MovementBehaviour.REGISTRY.register(ModBlocks.MILLSTONE.get(), new MillstoneBlockMovementBehaviour());
+        MovementBehaviour.REGISTRY.register(ModBlocks.TRASH_CAN.get(), new TrashCanBlockMovementBehaviour());
+
         // 注册椅子的移动行为（用于处理坐下实体）
         ChairBlockMovementBehaviour chairMovement = new ChairBlockMovementBehaviour();
         MovementBehaviour.REGISTRY.register(ModBlocks.CHAIR_OAK.get(), chairMovement);

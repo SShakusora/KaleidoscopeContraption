@@ -52,7 +52,7 @@ public class SteamerBlockMovementBehaviour implements MovementBehaviour {
 
         // 蒸笼每火力每 5 tick 更新一次
         if (context.world.getGameTime() % 5 == 0) {
-            updateLitLevel(context, state, nbt);
+            nbt = updateLitLevel(context, state, nbt);
 
             // 如果有蒸熟的，且进度为 -1，那么释放蒸汽粒子
             int[] cookingTime = nbt.getIntArray(COOKING_TIME_TAG);
@@ -77,7 +77,7 @@ public class SteamerBlockMovementBehaviour implements MovementBehaviour {
     /**
      * 更新火力等级
      */
-    private void updateLitLevel(MovementContext context, BlockState state, CompoundTag nbt) {
+    private CompoundTag updateLitLevel(MovementContext context, BlockState state, CompoundTag nbt) {
         int litLevel = 0;
 
         if (ContraptionInteractionUtil.hasHeatSource(context)) {
@@ -105,7 +105,9 @@ public class SteamerBlockMovementBehaviour implements MovementBehaviour {
             CompoundTag newNbt = nbt.copy();
             newNbt.putInt("LitLevel", litLevel);
             ContraptionDataUtil.updateContraptionData(context, state, newNbt, false);
+            return newNbt;
         }
+        return nbt;
     }
 
     /**
@@ -191,15 +193,13 @@ public class SteamerBlockMovementBehaviour implements MovementBehaviour {
             newNbt.putIntArray(COOKING_TIME_TAG, cookingTime);
             ContraptionDataUtil.updateContraptionData(context, state, newNbt, true);
         } else if (hasCooking) {
-            // 有物品在烹饪中但无状态变化，每5秒（100 tick）保存一次进度到服务端NBT，但不发送到客户端
-            int gameTime = (int) (context.world.getGameTime() % 100);
-            if (gameTime < 5) {
-                CompoundTag newNbt = nbt.copy();
-                saveItems(newNbt, items);
-                newNbt.putIntArray(COOKING_PROGRESS_TAG, cookingProgress);
-                newNbt.putIntArray(COOKING_TIME_TAG, cookingTime);
-                ContraptionDataUtil.updateContraptionData(context, state, newNbt, false);
-            }
+            // Keep server-side progress in the contraption every tick. This updates
+            // only local data; the client is synchronized when an item finishes.
+            CompoundTag newNbt = nbt.copy();
+            saveItems(newNbt, items);
+            newNbt.putIntArray(COOKING_PROGRESS_TAG, cookingProgress);
+            newNbt.putIntArray(COOKING_TIME_TAG, cookingTime);
+            ContraptionDataUtil.updateContraptionData(context, state, newNbt, false);
         }
     }
 

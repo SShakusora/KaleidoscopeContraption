@@ -1,11 +1,20 @@
 package com.sshakusora.kaleidoscope_contraption.network;
 
+import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.kitchen.ChoppingBoardBlockEntity;
+import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.kitchen.PotBlockEntity;
+import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.kitchen.StockpotBlockEntity;
+import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.kitchen.TeapotBlockEntity;
+import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.misc.TrashCanBlockEntity;
 import com.mojang.logging.LogUtils;
-import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
+import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccessor;
+import com.simibubi.create.content.contraptions.render.ClientContraption;
+import com.simibubi.create.foundation.virtualWorld.VirtualRenderWorld;
+import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ClientContraptionAccessor;
+import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionClientAccessor;
+import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import com.sshakusora.kaleidoscope_contraption.util.DevEnvUtil;
 import net.createmod.catnip.nbt.NBTHelper;
 import net.minecraft.client.Minecraft;
@@ -16,15 +25,21 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.AABB;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkEvent;
-import org.apache.commons.lang3.tuple.MutablePair;
 import org.slf4j.Logger;
 
+import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 public class KCContraptionChangedPacket {
@@ -72,7 +87,7 @@ public class KCContraptionChangedPacket {
         BlockPos localPos = buffer.readBlockPos();
         CompoundTag stateTag = buffer.readNbt();
         BlockState newState = NbtUtils.readBlockState(
-                BuiltInRegistries.BLOCK.asLookup(), stateTag);
+                BuiltInRegistries.BLOCK.asLookup(), Objects.requireNonNull(stateTag, "Missing block state"));
         CompoundTag newNbt = buffer.readNbt();
         AABB updatedBounds = null;
         if (buffer.readBoolean()) {
@@ -117,74 +132,20 @@ public class KCContraptionChangedPacket {
             // 检查这个位置是否已经有方块（用于判断是更新还是新增）
             var existingInfo = contraptionEntity.getContraption().getBlocks().get(packet.localPos);
             boolean isNewBlock = (existingInfo == null) || existingInfo.state().isAir();
+            MovementContext previousActorContext = findActorContext(
+                    contraptionEntity.getContraption(), packet.localPos);
 
             if (isBlockRemoved) {
-                // 删除方块：从客户端blocks中移除
-                contraptionEntity.getContraption().getBlocks().remove(packet.localPos);
-                contraptionEntity.getContraption().getInteractors().remove(packet.localPos);
-                contraptionEntity.getContraption().getActors().removeIf(actor -> actor.getLeft().pos().equals(packet.localPos));
-                ((ContraptionAccessor) contraptionEntity.getContraption()).getUpdateTags().remove(packet.localPos);
+                ContraptionInteractionUtil.removeBlockFromContraption(contraptionEntity, packet.localPos);
                 if (DevEnvUtil.isDevEnvironment()) {
                     LOGGER.info("[KCContraption] Block removed at {}", packet.localPos);
                 }
             } else {
-                // 更新方块数据（包含NBT）
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         packet.localPos, packet.newState, packet.newNbt);
-                contraptionEntity.getContraption().getBlocks().put(packet.localPos, newInfo);
-
-                // 更新interactors
-                MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(packet.newState);
-                if (interactionBehaviour != null) {
-                    contraptionEntity.getContraption().getInteractors().put(packet.localPos, interactionBehaviour);
-                    if (DevEnvUtil.isDevEnvironment()) {
-                        LOGGER.info("[KCContraption] Registered interactor for new block at {}", packet.localPos);
-                    }
-                }
-
-                // 更新actors列表 - 根据Contraption重建原理，需要同步更新
-                MovementBehaviour movementBehaviour = MovementBehaviour.REGISTRY.get(packet.newState);
-                if (movementBehaviour != null) {
-                    var actors = contraptionEntity.getContraption().getActors();
-                    // 检查是否已存在该位置的actor
-                    boolean exists = false;
-                    for (var actor : actors) {
-                        if (actor.getLeft().pos().equals(packet.localPos)) {
-                            exists = true;
-                            break;
-                        }
-                    }
-                    if (!exists) {
-                        // 创建新的MovementContext
-                        MovementContext context = new MovementContext(
-                                Minecraft.getInstance().level, newInfo, contraptionEntity.getContraption());
-                        actors.add(MutablePair.of(newInfo, context));
-                        if (DevEnvUtil.isDevEnvironment()) {
-                            LOGGER.info("[KCContraption] Registered actor for new block at {}", packet.localPos);
-                        }
-                    }
-                }
-
-                // 更新actor数据
-                var actors = contraptionEntity.getContraption().getActors();
-                if (DevEnvUtil.isDevEnvironment()) {
-                    LOGGER.info("[KCContraption] Actor count: {}", actors.size());
-                }
-                for (int i = 0; i < actors.size(); i++) {
-                    var actor = actors.get(i);
-                    if (actor.getLeft().pos().equals(packet.localPos)) {
-                        actor.setLeft(newInfo);
-                        if (DevEnvUtil.isDevEnvironment()) {
-                            LOGGER.info("[KCContraption] Updated actor at index {}", i);
-                        }
-                        break;
-                    }
-                }
+                ContraptionInteractionUtil.updateContraptionDataLocally(
+                        contraptionEntity, packet.localPos, newInfo);
             }
-
-            // 更新方块实体渲染
-            if (packet.needResetRender)
-                contraptionEntity.getContraption().resetClientContraption();
 
             // 更新bounds - 优先使用服务端同步的bounds
             boolean boundsUpdated = false;
@@ -210,70 +171,332 @@ public class KCContraptionChangedPacket {
                 }
             }
 
-            // 根据情况选择不同的刷新策略
-            if (isBlockRemoved) {
-                // 删除方块：使结构失效，重建主网格（而不仅仅是子元素）
-                contraptionEntity.getContraption().invalidateClientContraptionStructure();
-                if (DevEnvUtil.isDevEnvironment()) {
-                    LOGGER.info("[KCContraption] Block removed, invalidated structure");
-                }
-            } else if (isNewBlock) {
-                // 新添加的方块：需要完全重置ClientContraption
-                contraptionEntity.getContraption().resetClientContraption();
-            } else {
-                // 现有方块的更新：检查BlockState是否发生变化
-                boolean blockStateChanged = existingInfo == null || !existingInfo.state().equals(packet.newState);
-
-                if (blockStateChanged) {
-                    // BlockState发生变化：需要重建结构以更新渲染
-                    if (DevEnvUtil.isDevEnvironment()) {
-                        LOGGER.info("[KCContraption] BlockState changed at pos {}, invalidating structure", packet.localPos);
-                    }
-                    contraptionEntity.getContraption().invalidateClientContraptionStructure();
-
-                    // 同时更新ClientContraption中的BlockEntity的BlockState
-                    var clientContraption = contraptionEntity.getContraption().getOrCreateClientContraptionLazy();
-                    var blockEntity = clientContraption.getBlockEntity(packet.localPos);
-                    if (blockEntity != null) {
-                        if (DevEnvUtil.isDevEnvironment()) {
-                            LOGGER.info("[KCContraption] Updating BlockState for BlockEntity at pos {}: old={}, new={}",
-                                    packet.localPos, blockEntity.getBlockState(), packet.newState);
-                        }
-                        // 更新BlockEntity的BlockState
-                        blockEntity.setBlockState(packet.newState);
-                        // 同时更新NBT
-                        if (packet.newNbt != null) {
-                            blockEntity.load(packet.newNbt);
-                        }
-                    }
-                } else {
-                    // 只有NBT变化：更新BlockEntity数据并刷新视觉
-                    var clientContraption = contraptionEntity.getContraption().getOrCreateClientContraptionLazy();
-                    var blockEntity = clientContraption.getBlockEntity(packet.localPos);
-                    if (blockEntity != null) {
-                        if (DevEnvUtil.isDevEnvironment()) {
-                            LOGGER.info("[KCContraption] Found BlockEntity at pos {}: {}", packet.localPos, blockEntity.getClass().getSimpleName());
-                        }
-                        if (packet.newNbt != null) {
-                            // 直接调用load方法来加载NBT数据
-                            blockEntity.load(packet.newNbt);
-                            if (DevEnvUtil.isDevEnvironment()) {
-                                LOGGER.info("[KCContraption] Loaded NBT into BlockEntity: {}", packet.newNbt);
-                            }
-                        }
-                    } else if (DevEnvUtil.isDevEnvironment()) {
-                        LOGGER.warn("[KCContraption] No BlockEntity found at pos {}", packet.localPos);
-                    }
-
-                    // 触发客户端渲染更新
-                    contraptionEntity.getContraption().invalidateClientContraptionChildren();
-                    if (DevEnvUtil.isDevEnvironment()) {
-                        LOGGER.info("[KCContraption] Called invalidateClientContraptionChildren()");
-                    }
-                }
-            }
+            MovementContext updatedActorContext = findActorContext(
+                    contraptionEntity.getContraption(), packet.localPos);
+            updateClientRenderData(contraptionEntity.getContraption(), packet.localPos, existingInfo,
+                    isBlockRemoved ? null : contraptionEntity.getContraption().getBlocks().get(packet.localPos),
+                    packet.needResetRender, previousActorContext != updatedActorContext);
         } else {
             LOGGER.warn("[KCContraption] Could not find contraption entity with ID {}", packet.entityId);
         }
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static void updateClientRenderData(Contraption contraption, BlockPos localPos,
+                                               StructureTemplate.StructureBlockInfo oldInfo,
+                                               StructureTemplate.StructureBlockInfo newInfo,
+                                               boolean forceReset,
+                                               boolean actorContextChanged) {
+        AtomicReference<ClientContraption> reference =
+                ((ContraptionClientAccessor) contraption).getClientContraptionReference();
+        ClientContraption clientContraption = reference.getAcquire();
+        if (clientContraption == null) {
+            // The lazy ClientContraption will be built from the already-updated
+            // blocks and bounds when rendering starts.
+            return;
+        }
+
+        // VirtualRenderWorld fixes its vertical range in the constructor. Create's
+        // resetRenderLevel() reuses that world, so only a real replacement can make
+        // a newly-added block in another Y section visible.
+        if (newInfo != null && clientContraption.getRenderLevel().isOutsideBuildHeight(localPos)) {
+            replaceClientContraptionForExpandedBounds(contraption, reference, localPos);
+            return;
+        }
+
+        if (forceReset) {
+            resetClientContraptionPreservingTransientState(contraption, clientContraption);
+            return;
+        }
+
+        boolean stateChanged = oldInfo == null || newInfo == null
+                || !oldInfo.state().equals(newInfo.state());
+        VirtualRenderWorld renderLevel = clientContraption.getRenderLevel();
+        BlockEntity liveBlockEntity = clientContraption.getBlockEntity(localPos);
+        BlockEntityRenderInfo desiredRenderInfo = getBlockEntityRenderInfo(localPos,
+                newInfo == null ? null : newInfo.state());
+
+        boolean sameBlock = oldInfo != null && newInfo != null
+                && oldInfo.state().getBlock() == newInfo.state().getBlock();
+        boolean compatibleBlockEntity = liveBlockEntity != null && desiredRenderInfo != null
+                && liveBlockEntity.getType() == desiredRenderInfo.type()
+                && liveBlockEntity.getClass() == desiredRenderInfo.blockEntityClass()
+                && sameBlock;
+        boolean hasLiveBlockEntity = liveBlockEntity != null;
+        boolean needsBlockEntity = desiredRenderInfo != null;
+        boolean replaceBlockEntity = hasLiveBlockEntity != needsBlockEntity;
+        if (hasLiveBlockEntity && needsBlockEntity) {
+            replaceBlockEntity = !compatibleBlockEntity || newInfo.nbt() == null;
+        }
+
+        BlockState renderState = newInfo == null ? Blocks.AIR.defaultBlockState() : newInfo.state();
+        if (replaceBlockEntity && liveBlockEntity != null) {
+            renderLevel.removeBlockEntity(localPos);
+        }
+        if (stateChanged) {
+            renderLevel.setBlock(localPos, renderState, 0);
+        }
+
+        BlockEntity updatedBlockEntity = liveBlockEntity;
+        if (replaceBlockEntity) {
+            if (liveBlockEntity != null) {
+                liveBlockEntity.setRemoved();
+            }
+            updatedBlockEntity = null;
+            if (needsBlockEntity) {
+                updatedBlockEntity = clientContraption.readBlockEntity(renderLevel, newInfo, false);
+                if (updatedBlockEntity != null) {
+                    renderLevel.setBlockEntity(updatedBlockEntity);
+                }
+            }
+        } else if (updatedBlockEntity != null) {
+            if (stateChanged) {
+                updatedBlockEntity.setBlockState(renderState);
+            }
+            prepareTransientRenderState(updatedBlockEntity, oldInfo, newInfo);
+            updatedBlockEntity.handleUpdateTag(Objects.requireNonNull(newInfo.nbt()).copy());
+        }
+
+        boolean shouldRenderBlockEntity = updatedBlockEntity != null && desiredRenderInfo.rendered();
+        boolean renderDataChanged = stateChanged
+                || !Objects.equals(oldInfo == null ? null : oldInfo.nbt(),
+                newInfo == null ? null : newInfo.nbt());
+        boolean renderedMembershipChanged = syncRenderedBlockEntity(
+                clientContraption, localPos, liveBlockEntity, updatedBlockEntity,
+                shouldRenderBlockEntity, replaceBlockEntity, renderDataChanged);
+
+        if (stateChanged) {
+            renderLevel.runLightEngine();
+        }
+
+        clientContraption.invalidateStructure();
+        MovementBehaviour oldMovement = oldInfo == null ? null : MovementBehaviour.REGISTRY.get(oldInfo.state());
+        MovementBehaviour newMovement = newInfo == null ? null : MovementBehaviour.REGISTRY.get(newInfo.state());
+        boolean hasMovementVisual = oldMovement != null || newMovement != null;
+        boolean actorVisualChanged = actorContextChanged || oldMovement != newMovement
+                || (stateChanged && hasMovementVisual);
+        boolean blockEntityStateChanged = stateChanged
+                && (hasLiveBlockEntity || updatedBlockEntity != null);
+        if (replaceBlockEntity || renderedMembershipChanged
+                || blockEntityStateChanged
+                || actorVisualChanged) {
+            clientContraption.invalidateChildren();
+        }
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static boolean syncRenderedBlockEntity(ClientContraption clientContraption, BlockPos localPos,
+                                                   BlockEntity oldBlockEntity, BlockEntity newBlockEntity,
+                                                   boolean shouldRender, boolean replaced,
+                                                   boolean renderDataChanged) {
+        List<BlockEntity> renderedBlockEntities =
+                ((ClientContraptionAccessor) clientContraption).getRenderedBlockEntities();
+        int index = oldBlockEntity == null ? -1 : renderedBlockEntities.indexOf(oldBlockEntity);
+        if (index < 0) {
+            for (int i = 0; i < renderedBlockEntities.size(); i++) {
+                if (renderedBlockEntities.get(i).getBlockPos().equals(localPos)) {
+                    index = i;
+                    break;
+                }
+            }
+        }
+
+        if (shouldRender) {
+            if (index >= 0) {
+                boolean instanceChanged = renderedBlockEntities.get(index) != newBlockEntity;
+                if (instanceChanged) {
+                    renderedBlockEntities.set(index, newBlockEntity);
+                }
+                if (replaced || instanceChanged || renderDataChanged) {
+                    clientContraption.shouldRenderBlockEntities.set(index);
+                    clientContraption.scratchErroredBlockEntities.clear();
+                }
+                return instanceChanged;
+            }
+
+            int newIndex = renderedBlockEntities.size();
+            renderedBlockEntities.add(newBlockEntity);
+            clientContraption.shouldRenderBlockEntities.set(newIndex);
+            clientContraption.scratchErroredBlockEntities.clear();
+            return true;
+        }
+
+        if (index < 0) {
+            return false;
+        }
+
+        int previousSize = renderedBlockEntities.size();
+        renderedBlockEntities.remove(index);
+        shiftBitSetLeft(clientContraption.shouldRenderBlockEntities, index, previousSize);
+        clientContraption.scratchErroredBlockEntities.clear();
+        return true;
+    }
+
+    private static void shiftBitSetLeft(BitSet bits, int removedIndex, int previousSize) {
+        for (int i = removedIndex; i < previousSize - 1; i++) {
+            bits.set(i, bits.get(i + 1));
+        }
+        bits.clear(previousSize - 1);
+    }
+
+    private static MovementContext findActorContext(Contraption contraption, BlockPos localPos) {
+        for (var actor : contraption.getActors()) {
+            if (actor.getLeft().pos().equals(localPos)) {
+                return actor.getRight();
+            }
+        }
+        return null;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static void replaceClientContraptionForExpandedBounds(Contraption contraption,
+                                                                  AtomicReference<ClientContraption> reference,
+                                                                  BlockPos requiredPos) {
+        while (true) {
+            ClientContraption current = reference.getAcquire();
+            if (current == null || !current.getRenderLevel().isOutsideBuildHeight(requiredPos)) {
+                return;
+            }
+
+            Map<BlockPos, BlockEntity> previousBlockEntities = captureBlockEntities(contraption, current);
+            ClientContraption replacement =
+                    ((ContraptionClientAccessor) contraption).invokeCreateClientContraption();
+            if (replacement.getRenderLevel().isOutsideBuildHeight(requiredPos)) {
+                LOGGER.error("[KCContraption] Updated bounds do not contain local block {}", requiredPos);
+                return;
+            }
+
+            restoreTransientRenderState(previousBlockEntities, replacement);
+            ClientContraptionAccessor replacementAccessor = (ClientContraptionAccessor) replacement;
+            replacementAccessor.setStructureVersion(current.structureVersion());
+            replacementAccessor.setChildrenVersion(current.childrenVersion());
+            replacement.invalidateStructure();
+            replacement.invalidateChildren();
+
+            if (reference.compareAndSet(current, replacement)) {
+                return;
+            }
+        }
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static void resetClientContraptionPreservingTransientState(Contraption contraption,
+                                                                       ClientContraption clientContraption) {
+        Map<BlockPos, BlockEntity> previousBlockEntities = captureBlockEntities(contraption, clientContraption);
+        clientContraption.resetRenderLevel();
+        restoreTransientRenderState(previousBlockEntities, clientContraption);
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static Map<BlockPos, BlockEntity> captureBlockEntities(Contraption contraption,
+                                                                   ClientContraption clientContraption) {
+        Map<BlockPos, BlockEntity> result = new HashMap<>();
+        for (BlockPos pos : contraption.getBlocks().keySet()) {
+            BlockEntity blockEntity = clientContraption.getBlockEntity(pos);
+            if (blockEntity != null) {
+                result.put(pos, blockEntity);
+            }
+        }
+        return result;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static void restoreTransientRenderState(Map<BlockPos, BlockEntity> previousBlockEntities,
+                                                    ClientContraption clientContraption) {
+        previousBlockEntities.forEach((pos, previous) -> {
+            BlockEntity replacement = clientContraption.getBlockEntity(pos);
+            if (replacement != null && replacement.getClass() == previous.getClass()
+                    && replacement.getType() == previous.getType()) {
+                copyTransientRenderState(previous, replacement);
+            }
+        });
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static void copyTransientRenderState(BlockEntity previous, BlockEntity replacement) {
+        if (previous instanceof PotBlockEntity oldPot && replacement instanceof PotBlockEntity newPot) {
+            newPot.animationData = oldPot.animationData;
+        } else if (previous instanceof TeapotBlockEntity oldTeapot
+                && replacement instanceof TeapotBlockEntity newTeapot) {
+            newTeapot.boilingState = oldTeapot.boilingState;
+        } else if (previous instanceof TrashCanBlockEntity oldTrashCan
+                && replacement instanceof TrashCanBlockEntity newTrashCan) {
+            newTrashCan.putState = oldTrashCan.putState;
+            newTrashCan.withdrawState = oldTrashCan.withdrawState;
+            newTrashCan.player1State = oldTrashCan.player1State;
+            newTrashCan.player2State = oldTrashCan.player2State;
+            newTrashCan.enterState = oldTrashCan.enterState;
+        } else if (previous instanceof StockpotBlockEntity oldStockpot
+                && replacement instanceof StockpotBlockEntity newStockpot) {
+            if (newStockpot.getStatus() != 0
+                    && Objects.equals(oldStockpot.getSoupBaseId(), newStockpot.getSoupBaseId())) {
+                newStockpot.renderEntity = oldStockpot.renderEntity;
+            }
+        } else if (previous instanceof ChoppingBoardBlockEntity oldBoard
+                && replacement instanceof ChoppingBoardBlockEntity newBoard
+                && Objects.equals(oldBoard.getModelId(), newBoard.getModelId())
+                && oldBoard.getMaxCutCount() == newBoard.getMaxCutCount()) {
+            newBoard.previousModel = oldBoard.previousModel;
+            newBoard.cacheModels = oldBoard.cacheModels;
+        }
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static BlockEntityRenderInfo getBlockEntityRenderInfo(BlockPos pos, BlockState state) {
+        if (state == null || !state.hasBlockEntity()
+                || !(state.getBlock() instanceof EntityBlock entityBlock)) {
+            return null;
+        }
+        BlockEntity blockEntity = entityBlock.newBlockEntity(pos, state);
+        if (blockEntity == null) {
+            return null;
+        }
+        BlockEntityType<?> type = blockEntity.getType();
+        Class<? extends BlockEntity> blockEntityClass = blockEntity.getClass();
+        blockEntity.setRemoved();
+        MovementBehaviour movement = MovementBehaviour.REGISTRY.get(state);
+        boolean rendered = movement == null || !movement.disableBlockEntityRendering();
+        return new BlockEntityRenderInfo(type, blockEntityClass, rendered);
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static void prepareTransientRenderState(BlockEntity blockEntity,
+                                                    StructureTemplate.StructureBlockInfo oldInfo,
+                                                    StructureTemplate.StructureBlockInfo newInfo) {
+        CompoundTag newNbt = Objects.requireNonNull(newInfo.nbt());
+        if (blockEntity instanceof ChoppingBoardBlockEntity choppingBoard) {
+            String oldModelId = oldInfo == null || oldInfo.nbt() == null
+                    ? "" : oldInfo.nbt().getString("ModelId");
+            String newModelId = newNbt.getString("ModelId");
+            int oldMaxCutCount = oldInfo == null || oldInfo.nbt() == null
+                    ? 0 : oldInfo.nbt().getInt("MaxCutCount");
+            if (!oldModelId.equals(newModelId)
+                    || oldMaxCutCount != newNbt.getInt("MaxCutCount")) {
+                choppingBoard.previousModel = null;
+                choppingBoard.cacheModels = null;
+            }
+            return;
+        }
+
+        if (!(blockEntity instanceof StockpotBlockEntity stockpot)) {
+            return;
+        }
+
+        stockpot.visuals = null;
+        if (!newNbt.contains("LidItem", Tag.TAG_COMPOUND)) {
+            stockpot.setLidItem(ItemStack.EMPTY);
+        }
+
+        String oldSoupBase = oldInfo == null || oldInfo.nbt() == null
+                ? "" : oldInfo.nbt().getString("SoupBaseId");
+        String newSoupBase = newNbt.getString("SoupBaseId");
+        if (newNbt.getInt("Status") == 0 || !oldSoupBase.equals(newSoupBase)) {
+            stockpot.renderEntity = null;
+        }
+    }
+
+    private record BlockEntityRenderInfo(BlockEntityType<?> type,
+                                         Class<? extends BlockEntity> blockEntityClass,
+                                         boolean rendered) {
     }
 }

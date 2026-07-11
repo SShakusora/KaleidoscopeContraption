@@ -44,9 +44,18 @@ public class ContraptionDataUtil {
 
         // 更新blocks
         context.contraption.getBlocks().put(context.localPos, newInfo);
+        context.contraption.getIsLegacy().removeBoolean(context.localPos);
 
         // 更新updateTags
-        ((ContraptionAccessor) context.contraption).getUpdateTags().put(context.localPos, newNbt);
+        var updateTags = ((ContraptionAccessor) context.contraption).getUpdateTags();
+        if (newNbt == null) {
+            updateTags.remove(context.localPos);
+        } else {
+            updateTags.put(context.localPos, newNbt);
+        }
+
+        context.state = state;
+        context.blockEntityData = newNbt;
 
         // 更新actors列表
         var actors = context.contraption.getActors();

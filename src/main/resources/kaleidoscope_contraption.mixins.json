@@ -2,7 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.sshakusora.kaleidoscope_contraption.mixin",
-  "compatibilityLevel": "JAVA_8",
+  "compatibilityLevel": "JAVA_17",
   "refmap": "kaleidoscope_contraption.refmap.json",
   "mixins": [
     "accessor.ClockworkContraptionAccessor",
@@ -10,6 +10,9 @@
     "accessor.FoodBiteBlockAccessor"
   ],
   "client": [
+    "accessor.ClientContraptionAccessor",
+    "accessor.ContraptionClientAccessor",
+    "client.TeapotBlockEntityRenderMixin"
   ],
   "injectors": {
     "defaultRequire": 1

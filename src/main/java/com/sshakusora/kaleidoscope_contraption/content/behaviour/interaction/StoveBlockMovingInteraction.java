@@ -29,6 +29,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -42,7 +43,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import static com.github.ysbbbbbb.kaleidoscopecookery.item.KitchenShovelItem.hasOil;
 import static com.github.ysbbbbbb.kaleidoscopecookery.item.KitchenShovelItem.setHasOil;
 
-public class StoveBlockMovingInteraction extends MovingInteractionBehaviour {
+public class StoveBlockMovingInteraction extends SyncedMovingInteractionBehaviour {
 
     @Override
     public boolean handlePlayerInteraction(Player player, InteractionHand activeHand, BlockPos localPos, AbstractContraptionEntity contraptionEntity) {
@@ -210,7 +211,7 @@ public class StoveBlockMovingInteraction extends MovingInteractionBehaviour {
                     abovePos, newState, nbt);
 
             // 使用setContraptionBlockData来更新方块数据
-            setContraptionBlockData(contraptionEntity, abovePos, newInfo);
+            setContraptionBlockDataLocally(contraptionEntity, abovePos, newInfo);
 
             // 注册交互行为到interactors
             MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(newState);
@@ -314,7 +315,7 @@ public class StoveBlockMovingInteraction extends MovingInteractionBehaviour {
                     abovePos, newState, nbt);
 
             // 使用setContraptionBlockData来更新方块数据
-            setContraptionBlockData(contraptionEntity, abovePos, newInfo);
+            setContraptionBlockDataLocally(contraptionEntity, abovePos, newInfo);
 
             // 注册交互行为到interactors
             MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(newState);
@@ -404,7 +405,7 @@ public class StoveBlockMovingInteraction extends MovingInteractionBehaviour {
 
             // 从手持物品中读取NBT数据（如果有）
             CompoundTag nbt = new CompoundTag();
-            CompoundTag handData = net.minecraft.world.item.BlockItem.getBlockEntityData(itemInHand);
+            CompoundTag handData = BlockItem.getBlockEntityData(itemInHand);
             if (handData != null) {
                 // 手持物品有数据，读取物品和进度
                 NonNullList<ItemStack> handItems = NonNullList.withSize(4, ItemStack.EMPTY);
@@ -444,7 +445,7 @@ public class StoveBlockMovingInteraction extends MovingInteractionBehaviour {
                     abovePos, newState, nbt);
 
             // 使用setContraptionBlockData来更新方块数据
-            setContraptionBlockData(contraptionEntity, abovePos, newInfo);
+            setContraptionBlockDataLocally(contraptionEntity, abovePos, newInfo);
 
             // 注册交互行为到interactors
             MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(newState);

@@ -1,6 +1,8 @@
 package com.sshakusora.kaleidoscope_contraption.util;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.init.tag.TagMod;
+import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
+import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
@@ -28,22 +30,7 @@ public class ContraptionInteractionUtil {
      */
     public static void updateContraptionData(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
                                                StructureTemplate.StructureBlockInfo newInfo) {
-        // 更新方块数据
-        contraptionEntity.getContraption().getBlocks().put(localPos, newInfo);
-        
-        // 标记为更新，避免重进存档后NBT消失
-        if (newInfo.nbt() != null) {
-            ((ContraptionAccessor) contraptionEntity.getContraption()).getUpdateTags().put(localPos, newInfo.nbt());
-        }
-
-        // 查找并更新actor数据
-        var actors = contraptionEntity.getContraption().getActors();
-        for (MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> actor : actors) {
-            if (actor.getLeft().pos().equals(localPos)) {
-                actor.setLeft(newInfo);
-                break;
-            }
-        }
+        updateContraptionDataLocally(contraptionEntity, localPos, newInfo);
 
         // 发送自定义数据包同步NBT数据到客户端
         if (!contraptionEntity.level().isClientSide) {
@@ -60,23 +47,8 @@ public class ContraptionInteractionUtil {
     }
 
     public static void updateContraptionDataWithBound(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                             StructureTemplate.StructureBlockInfo newInfo, AABB updatedBounds) {
-        // 更新方块数据
-        contraptionEntity.getContraption().getBlocks().put(localPos, newInfo);
-
-        // 标记为更新，避免重进存档后NBT消失
-        if (newInfo.nbt() != null) {
-            ((ContraptionAccessor) contraptionEntity.getContraption()).getUpdateTags().put(localPos, newInfo.nbt());
-        }
-
-        // 查找并更新actor数据
-        var actors = contraptionEntity.getContraption().getActors();
-        for (MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> actor : actors) {
-            if (actor.getLeft().pos().equals(localPos)) {
-                actor.setLeft(newInfo);
-                break;
-            }
-        }
+                                              StructureTemplate.StructureBlockInfo newInfo, AABB updatedBounds) {
+        updateContraptionDataLocally(contraptionEntity, localPos, newInfo);
 
         // 发送自定义数据包同步NBT数据到客户端
         if (!contraptionEntity.level().isClientSide) {
@@ -94,52 +66,100 @@ public class ContraptionInteractionUtil {
     }
 
     public static void updateContraptionDataWithResetRenderer(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                                              StructureTemplate.StructureBlockInfo newInfo) {
-        // 更新方块数据
-        contraptionEntity.getContraption().getBlocks().put(localPos, newInfo);
+                                                               StructureTemplate.StructureBlockInfo newInfo) {
+        // Updating the live virtual BE and invalidating its caches is sufficient for
+        // NBT-only changes; a full reset would discard client-only BER animation state.
+        updateContraptionData(contraptionEntity, localPos, newInfo);
+    }
 
-        // 标记为更新，避免重进存档后NBT消失
-        if (newInfo.nbt() != null) {
-            ((ContraptionAccessor) contraptionEntity.getContraption()).getUpdateTags().put(localPos, newInfo.nbt());
+    public static void updateContraptionDataLocally(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
+                                                    StructureTemplate.StructureBlockInfo newInfo) {
+        Contraption contraption = contraptionEntity.getContraption();
+        MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> existingActor = findActor(contraption, localPos);
+        MovementBehaviour previousMovement = existingActor == null
+                ? null : MovementBehaviour.REGISTRY.get(existingActor.getLeft().state());
+        MovementContext previousContext = existingActor == null ? null : existingActor.getRight();
+        MovementBehaviour movement = MovementBehaviour.REGISTRY.get(newInfo.state());
+
+        if (previousMovement != movement && previousMovement != null && previousContext != null) {
+            previousMovement.stopMoving(previousContext);
         }
 
-        // 查找并更新actor数据
-        var actors = contraptionEntity.getContraption().getActors();
-        for (MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> actor : actors) {
-            if (actor.getLeft().pos().equals(localPos)) {
-                actor.setLeft(newInfo);
-                break;
+        contraption.getBlocks().put(localPos, newInfo);
+        contraption.getIsLegacy().removeBoolean(localPos);
+
+        var updateTags = ((ContraptionAccessor) contraption).getUpdateTags();
+        if (newInfo.nbt() == null) {
+            updateTags.remove(localPos);
+        } else {
+            updateTags.put(localPos, newInfo.nbt());
+        }
+
+        MovingInteractionBehaviour interaction = MovingInteractionBehaviour.REGISTRY.get(newInfo.state());
+        if (interaction == null) {
+            contraption.getInteractors().remove(localPos);
+        } else {
+            contraption.getInteractors().put(localPos, interaction);
+        }
+
+        if (movement == null) {
+            if (existingActor != null) {
+                contraption.getActors().remove(existingActor);
             }
+            return;
         }
 
-        // 发送自定义数据包同步NBT数据到客户端
-        if (!contraptionEntity.level().isClientSide) {
-            KCPacketHandler.sendToTracking(
-                    new KCContraptionChangedPacket(
-                            contraptionEntity.getId(),
-                            localPos,
-                            newInfo.state(),
-                            newInfo.nbt(),
-                            null,
-                            true
-                    ),
-                    contraptionEntity
-            );
+        if (existingActor == null || previousMovement != movement || previousContext == null) {
+            MovementContext context = new MovementContext(contraptionEntity.level(), newInfo, contraption);
+            if (existingActor == null) {
+                contraption.getActors().add(MutablePair.of(newInfo, context));
+            } else {
+                existingActor.setLeft(newInfo);
+                existingActor.setRight(context);
+            }
+            movement.startMoving(context);
+            return;
         }
+
+        existingActor.setLeft(newInfo);
+        previousContext.state = newInfo.state();
+        previousContext.blockEntityData = newInfo.nbt();
     }
 
     /**
      * 从Contraption中移除一个方块，包括从blocks、interactors、actors中移除，并更新bounds
      */
     public static void removeBlockFromContraption(AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
+        Contraption contraption = contraptionEntity.getContraption();
+        MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> actor = findActor(contraption, localPos);
+        if (actor != null) {
+            MovementBehaviour movement = MovementBehaviour.REGISTRY.get(actor.getLeft().state());
+            if (movement != null && actor.getRight() != null) {
+                movement.stopMoving(actor.getRight());
+            }
+        }
+
         // 从blocks中移除
-        contraptionEntity.getContraption().getBlocks().remove(localPos);
+        contraption.getBlocks().remove(localPos);
 
         // 从interactors中移除
-        contraptionEntity.getContraption().getInteractors().remove(localPos);
+        contraption.getInteractors().remove(localPos);
 
         // 从actors中移除
-        contraptionEntity.getContraption().getActors().removeIf(actor -> actor.getLeft().pos().equals(localPos));
+        contraption.getActors().removeIf(entry -> entry.getLeft().pos().equals(localPos));
+
+        ((ContraptionAccessor) contraption).getUpdateTags().remove(localPos);
+        contraption.getIsLegacy().removeBoolean(localPos);
+    }
+
+    private static MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> findActor(
+            Contraption contraption, BlockPos localPos) {
+        for (MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> actor : contraption.getActors()) {
+            if (actor.getLeft().pos().equals(localPos)) {
+                return actor;
+            }
+        }
+        return null;
     }
 
     /**

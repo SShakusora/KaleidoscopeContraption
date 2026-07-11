@@ -1,6 +1,7 @@
 package com.sshakusora.kaleidoscope_contraption.content.behaviour.movement;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.StockpotBlock;
+import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.kitchen.StockpotBlockEntity;
 import com.github.ysbbbbbb.kaleidoscopecookery.client.particle.StockpotParticleOptions;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.container.StockpotContainer;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.StockpotRecipe;
@@ -55,6 +56,10 @@ public class StockpotBlockMovementBehaviour implements MovementBehaviour {
     @Override
     public void tick(MovementContext context) {
         if (context.world.isClientSide) {
+            if (context.contraption.getBlockEntityClientSide(context.localPos)
+                    instanceof StockpotBlockEntity blockEntity) {
+                blockEntity.clientTick();
+            }
             return;
         }
 
