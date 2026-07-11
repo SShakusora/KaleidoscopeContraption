@@ -13,6 +13,7 @@ import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.placement.TableFoodPlacementRule;
 import com.sshakusora.kaleidoscope_contraption.mixin.accessor.FoodBiteBlockAccessor;
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
@@ -66,7 +67,10 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
             return handleReplacement(player, activeHand, localPos, contraptionEntity, state, info);
         }
 
-        if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) return false;
+        if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
+            return new TableFoodPlacementRule().tryRemoveUnregistered(
+                    player, localPos, contraptionEntity);
+        }
 
         // 检查是否可以食用并执行食用逻辑
         if (!eatFood(player, foodBlock, state, contraptionEntity, localPos)) {
@@ -490,7 +494,7 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
         return true;
     }
 
-    static int getQualityId(ItemStack stack) {
+    public static int getQualityId(ItemStack stack) {
         return QualityUtils.hasQuality(stack)
                 ? QualityUtils.getQuality(stack).getId()
                 : FoodBiteBlock.DEFAULT_QUALITY;

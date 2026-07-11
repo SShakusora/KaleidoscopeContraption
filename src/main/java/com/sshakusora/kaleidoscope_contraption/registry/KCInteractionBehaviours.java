@@ -2,6 +2,7 @@ package com.sshakusora.kaleidoscope_contraption.registry;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModBlocks;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.registry.FoodBiteRegistry;
+import com.github.ysbbbbbb.kaleidoscopecookery.init.registry.TeacupRegistry;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.content.contraptions.actors.seat.SeatInteractionBehaviour;
 import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.*;
@@ -104,6 +105,15 @@ public class KCInteractionBehaviours {
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.TEAPOT.get(), new TeapotBlockMovingInteraction());
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.MILLSTONE.get(), new MillstoneBlockMovingInteraction());
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.TRASH_CAN.get(), new TrashCanBlockMovingInteraction());
+
+        TeacupBlockMovingInteraction teacupInteraction = new TeacupBlockMovingInteraction();
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.EMPTY_CUP.get(), teacupInteraction);
+        TeacupRegistry.TEACUP_DATA_MAP.keySet().forEach(id -> {
+            var block = TeacupRegistry.getBlock(id);
+            if (block != null) {
+                MovingInteractionBehaviour.REGISTRY.register(block, teacupInteraction);
+            }
+        });
 
         // 注册椅子的交互行为
         SeatInteractionBehaviour seatInteractionBehaviour = new SeatInteractionBehaviour();

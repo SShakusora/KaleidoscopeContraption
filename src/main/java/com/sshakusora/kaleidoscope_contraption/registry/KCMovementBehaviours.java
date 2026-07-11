@@ -1,6 +1,7 @@
 package com.sshakusora.kaleidoscope_contraption.registry;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModBlocks;
+import com.github.ysbbbbbb.kaleidoscopecookery.init.registry.TeacupRegistry;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.*;
 
@@ -22,6 +23,14 @@ public class KCMovementBehaviours {
         MovementBehaviour.REGISTRY.register(ModBlocks.TEAPOT.get(), new TeapotBlockMovementBehaviour());
         MovementBehaviour.REGISTRY.register(ModBlocks.MILLSTONE.get(), new MillstoneBlockMovementBehaviour());
         MovementBehaviour.REGISTRY.register(ModBlocks.TRASH_CAN.get(), new TrashCanBlockMovementBehaviour());
+
+        TeacupBlockMovementBehaviour teacupMovement = new TeacupBlockMovementBehaviour();
+        TeacupRegistry.TEACUP_DATA_MAP.keySet().forEach(id -> {
+            var block = TeacupRegistry.getBlock(id);
+            if (block != null) {
+                MovementBehaviour.REGISTRY.register(block, teacupMovement);
+            }
+        });
 
         // 注册椅子的移动行为（用于处理坐下实体）
         ChairBlockMovementBehaviour chairMovement = new ChairBlockMovementBehaviour();

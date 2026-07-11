@@ -44,6 +44,9 @@ public final class ContraptionRemovalManager {
         if (removal.isEmpty() || !ContraptionRemovalTransaction.canRemove(context, removal.get())) {
             return Result.REJECTED;
         }
+        if (entity.level().isClientSide) {
+            return Result.REMOVED;
+        }
         if (!ContraptionRemovalTransaction.commit(context, removal.get())) {
             return Result.REJECTED;
         }

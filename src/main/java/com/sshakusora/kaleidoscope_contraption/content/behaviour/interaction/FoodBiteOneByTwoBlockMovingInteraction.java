@@ -5,6 +5,7 @@ import com.github.ysbbbbbb.kaleidoscopecookery.block.food.FoodBiteBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.food.FoodBiteOneByTwoBlock;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.placement.TableFoodPlacementRule;
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
 import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
@@ -71,7 +72,10 @@ public class FoodBiteOneByTwoBlockMovingInteraction extends FoodBiteBlockMovingI
             return handleReplacementOrRemoval(player, activeHand, leftPos, rightPos, contraptionEntity, leftInfo, rightInfo);
         }
 
-        if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) return false;
+        if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
+            return new TableFoodPlacementRule().tryRemoveUnregistered(
+                    player, localPos, contraptionEntity);
+        }
 
         // 执行食用逻辑（只执行一次）
         if (!eatFood(player, foodBlock, leftInfo.state(), contraptionEntity, leftPos)) {

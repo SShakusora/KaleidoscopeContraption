@@ -19,6 +19,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
+import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionRemovalManager;
 import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
@@ -86,9 +87,8 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
 
         // 处理按下移除键取下PotBlock
         if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
-            if (removePotBlock(player, contraptionEntity, localPos, activeHand)) {
-                return true;
-            }
+            return ContraptionRemovalManager.tryRemove(player, localPos, contraptionEntity)
+                    == ContraptionRemovalManager.Result.REMOVED;
         }
 
         CompoundTag nbt = info.nbt();

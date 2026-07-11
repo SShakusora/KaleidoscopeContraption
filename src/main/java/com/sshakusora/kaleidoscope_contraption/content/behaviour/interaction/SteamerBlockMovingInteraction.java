@@ -7,13 +7,11 @@ import com.github.ysbbbbbb.kaleidoscopecookery.init.ModItems;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModRecipes;
 import com.github.ysbbbbbb.kaleidoscopecookery.item.SteamerItem;
 import com.github.ysbbbbbb.kaleidoscopecookery.util.ItemUtils;
-import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
-import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
-import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
-import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
+import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionPlacementManager;
+import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionRemovalManager;
 import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
+import com.sshakusora.kaleidoscope_contraption.registry.KCContraptionPlacements;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
@@ -30,7 +28,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.Vec3;
-import org.apache.commons.lang3.tuple.MutablePair;
 
 
 public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehaviour {
@@ -56,7 +53,12 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
 
         // 处理按下移除键取下蒸笼
         if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
-            return removeSteamerBlock(player, contraptionEntity, localPos, activeHand);
+            ContraptionRemovalManager.Result result = ContraptionRemovalManager.tryRemove(
+                    player, localPos, contraptionEntity);
+            if (result == ContraptionRemovalManager.Result.NOT_REGISTERED) {
+                return removeSteamerBlock(player, contraptionEntity, localPos, activeHand);
+            }
+            return result == ContraptionRemovalManager.Result.REMOVED;
         }
 
         CompoundTag nbt = info.nbt();
@@ -78,8 +80,8 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
             if (stackSteamer(player, contraptionEntity, localPos, state, nbt, itemInHand, activeHand, info)) {
                 return true;
             }
-            // 再尝试在上方放置新的蒸笼（双层上方）
-            if (placeSteamerAbove(player, contraptionEntity, localPos, state, nbt, itemInHand, activeHand, info)) {
+            if (ContraptionPlacementManager.tryPlace(KCContraptionPlacements.STEAMER_TOP,
+                    player, activeHand, localPos, contraptionEntity)) {
                 return true;
             }
         }
@@ -136,8 +138,8 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
      * 堆叠蒸笼
      */
     private boolean stackSteamer(Player player, AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                  BlockState state, CompoundTag nbt, ItemStack itemInHand, InteractionHand hand,
-                                  StructureTemplate.StructureBlockInfo info) {
+                                 BlockState state, CompoundTag nbt, ItemStack itemInHand, InteractionHand hand,
+                                 StructureTemplate.StructureBlockInfo info) {
         // 当目标是完整的未加盖蒸笼方块，继续向上搜索
         BlockPos placePos = localPos;
         BlockState blockState = state;
@@ -227,164 +229,10 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
     }
 
     /**
-     * 在双层蒸笼上方放置新的蒸笼
-     */
-    private boolean placeSteamerAbove(Player player, AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                       BlockState state, CompoundTag nbt, ItemStack itemInHand, InteractionHand hand,
-                                       StructureTemplate.StructureBlockInfo info) {
-        // 只有双层蒸笼（HALF=false）才支持在上方放置
-        if (state.getValue(SteamerBlock.HALF)) {
-            return false;
-        }
-
-        BlockPos abovePos = localPos.above();
-
-        // 检查正上方是否已经有方块
-        StructureTemplate.StructureBlockInfo aboveInfo = contraptionEntity.getContraption().getBlocks().get(abovePos);
-        if (aboveInfo != null && !aboveInfo.state().isAir()) {
-            return false;
-        }
-
-        // 在服务端执行放置逻辑
-        if (!contraptionEntity.level().isClientSide) {
-            // 创建新的SteamerBlock状态
-            BlockState newState = ModBlocks.STEAMER.get().defaultBlockState()
-                    .setValue(SteamerBlock.FACING, state.getValue(SteamerBlock.FACING))
-                    .setValue(SteamerBlock.HALF, true)  // 初始为单层
-                    .setValue(SteamerBlock.HAS_LID, false)
-                    .setValue(SteamerBlock.HAS_BASE, false)  // 下方是蒸笼，不需要基座
-                    .setValue(SteamerBlock.WATERLOGGED, false);
-
-            // 从手持物品中读取NBT数据（如果有）
-            CompoundTag newNbt = new CompoundTag();
-            CompoundTag handData = BlockItem.getBlockEntityData(itemInHand);
-            if (handData != null) {
-                // 手持物品有数据，读取物品和进度
-                NonNullList<ItemStack> handItems = NonNullList.withSize(4, ItemStack.EMPTY);
-                ContainerHelper.loadAllItems(handData, handItems);
-                int[] handProgress = handData.getIntArray(COOKING_PROGRESS_TAG);
-                int[] handTime = handData.getIntArray(COOKING_TIME_TAG);
-
-                // 保存到NBT（单层只有0-3槽位）
-                NonNullList<ItemStack> items = NonNullList.withSize(8, ItemStack.EMPTY);
-                for (int i = 0; i < 4; i++) {
-                    items.set(i, handItems.get(i));
-                }
-                ContainerHelper.saveAllItems(newNbt, items, true);
-
-                int[] progress = new int[8];
-                int[] time = new int[8];
-                if (handProgress.length >= 4) {
-                    System.arraycopy(handProgress, 0, progress, 0, 4);
-                }
-                if (handTime.length >= 4) {
-                    System.arraycopy(handTime, 0, time, 0, 4);
-                }
-                newNbt.putIntArray(COOKING_PROGRESS_TAG, progress);
-                newNbt.putIntArray(COOKING_TIME_TAG, time);
-            } else {
-                // 空手物品，初始化空NBT
-                NonNullList<ItemStack> items = NonNullList.withSize(8, ItemStack.EMPTY);
-                ContainerHelper.saveAllItems(newNbt, items, true);
-                newNbt.putIntArray(COOKING_PROGRESS_TAG, new int[8]);
-                newNbt.putIntArray(COOKING_TIME_TAG, new int[8]);
-            }
-
-            // 写入id
-            newNbt.putString("id", "kaleidoscope_cookery:steamer");
-
-            StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
-                    abovePos, newState, newNbt);
-
-            // 使用setContraptionBlockData来更新方块数据
-            setContraptionBlockDataLocally(contraptionEntity, abovePos, newInfo);
-
-            // 注册交互行为到interactors
-            MovingInteractionBehaviour interactionBehaviour = MovingInteractionBehaviour.REGISTRY.get(newState);
-            if (interactionBehaviour != null) {
-                contraptionEntity.getContraption().getInteractors().put(abovePos, interactionBehaviour);
-            }
-
-            // 注册MovementBehaviour到actors列表
-            MovementBehaviour movementBehaviour = MovementBehaviour.REGISTRY.get(newState);
-            if (movementBehaviour != null) {
-                var actors = contraptionEntity.getContraption().getActors();
-                boolean exists = false;
-                for (var actor : actors) {
-                    if (actor.getLeft().pos().equals(abovePos)) {
-                        exists = true;
-                        break;
-                    }
-                }
-                if (!exists) {
-                    MovementContext context = new MovementContext(
-                            contraptionEntity.level(), newInfo, contraptionEntity.getContraption());
-                    actors.add(MutablePair.of(newInfo, context));
-                }
-            }
-
-            // 更新下方蒸笼的状态：移除盖子
-            BlockState updatedState = state.setValue(SteamerBlock.HAS_LID, false);
-            StructureTemplate.StructureBlockInfo updatedInfo = new StructureTemplate.StructureBlockInfo(
-                    info.pos(), updatedState, nbt);
-            setContraptionBlockDataLocally(contraptionEntity, localPos, updatedInfo);
-
-            // 更新下方蒸笼的actor数据
-            var actors = contraptionEntity.getContraption().getActors();
-            for (int i = 0; i < actors.size(); i++) {
-                MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> actor = actors.get(i);
-                if (actor.getLeft().pos().equals(localPos)) {
-                    setContraptionActorData(contraptionEntity, i, updatedInfo, actor.getRight());
-                    break;
-                }
-            }
-
-            // 更新Contraption的bounds
-            var updatedBounds = ContraptionInteractionUtil.updateBounds(contraptionEntity, abovePos);
-
-            // 通知客户端：放置新蒸笼并更新下方蒸笼状态
-            KCPacketHandler.sendToTracking(
-                    new KCContraptionChangedPacket(
-                            contraptionEntity.getId(),
-                            abovePos,
-                            newInfo.state(),
-                            newInfo.nbt(),
-                            updatedBounds
-                    ),
-                    contraptionEntity
-            );
-
-            // 同步下方蒸笼状态变更
-            KCPacketHandler.sendToTracking(
-                    new KCContraptionChangedPacket(
-                            contraptionEntity.getId(),
-                            localPos,
-                            updatedInfo.state(),
-                            updatedInfo.nbt()
-                    ),
-                    contraptionEntity
-            );
-
-            // 消耗物品
-            if (!player.isCreative()) {
-                itemInHand.shrink(1);
-            }
-
-            // 播放音效
-            Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(abovePos), 1.0f);
-            BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
-            contraptionEntity.level().playSound(null, soundPos, newState.getSoundType().getPlaceSound(),
-                    SoundSource.BLOCKS, 1.0F, 0.8F);
-        }
-
-        return true;
-    }
-
-    /**
      * 放入食物
      */
     private boolean placeFood(Player player, AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                               BlockState state, CompoundTag nbt, ItemStack food, StructureTemplate.StructureBlockInfo info) {
+                              BlockState state, CompoundTag nbt, ItemStack food, StructureTemplate.StructureBlockInfo info) {
         if (food.isEmpty()) {
             return false;
         }
@@ -456,7 +304,7 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
      * 取出食物
      */
     private boolean takeFood(Player player, AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                              BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
+                             BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
         // 先检查这层是否是能交互的
         // 上层必须不能阻拦
         if (isAboveBlocked(contraptionEntity, localPos)) {
@@ -564,6 +412,9 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
         if (steamerInfo == null || !(steamerInfo.state().getBlock() instanceof SteamerBlock)) {
             return false;
         }
+        if (isAboveSteamer(contraptionEntity, localPos)) {
+            return false;
+        }
 
         // 在服务端执行移除逻辑
         if (!contraptionEntity.level().isClientSide) {
@@ -573,19 +424,25 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
             // 创建蒸笼物品并保存数据
             ItemStack steamerStack = createSteamerItemStack(steamerInfo.state(), nbt);
 
-            // 从Contraption中移除方块
-            ContraptionInteractionUtil.removeBlockFromContraption(contraptionEntity, localPos);
-
-            // 更新Contraption的bounds
-            var updatedBounds = ContraptionInteractionUtil.recalculateBounds(contraptionEntity);
+            if (steamerInfo.state().getValue(SteamerBlock.HALF)) {
+                // 单层蒸笼：移除剩余的下半部分
+                ContraptionInteractionUtil.removeBlockFromContraption(contraptionEntity, localPos);
+                var updatedBounds = ContraptionInteractionUtil.recalculateBounds(contraptionEntity);
+                contraptionEntity.getContraption().invalidateColliders();
+                ContraptionInteractionUtil.syncBlockRemoval(contraptionEntity, localPos, updatedBounds);
+            } else {
+                // 双层蒸笼：先取下上半部分，下半部分继续留在Contraption中
+                StructureTemplate.StructureBlockInfo reducedInfo = reduceSteamerToSingleLayer(steamerInfo, nbt);
+                var updatedBounds = ContraptionInteractionUtil.recalculateBounds(contraptionEntity);
+                ContraptionInteractionUtil.updateContraptionDataWithBound(
+                        contraptionEntity, localPos, reducedInfo, updatedBounds);
+                contraptionEntity.getContraption().invalidateColliders();
+            }
 
             // 掉落蒸笼物品给玩家
             if (!player.isCreative()) {
                 player.getInventory().placeItemBackInInventory(steamerStack);
             }
-
-            // 通知客户端
-            ContraptionInteractionUtil.syncBlockRemoval(contraptionEntity, localPos, updatedBounds);
 
             // 播放破坏音效
             ContraptionInteractionUtil.playBreakSound(contraptionEntity, localPos, steamerInfo.state());
@@ -641,12 +498,40 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
 
         CompoundTag saveTag = new CompoundTag();
         ContainerHelper.saveAllItems(saveTag, saveItems, false);
-        saveTag.putIntArray(COOKING_PROGRESS_TAG, saveProgress);
-        saveTag.putIntArray(COOKING_TIME_TAG, saveTime);
-
-        BlockItem.setBlockEntityData(stack, ModBlocks.STEAMER_BE.get(), saveTag);
+        if (!saveTag.isEmpty()) {
+            saveTag.putIntArray(COOKING_PROGRESS_TAG, saveProgress);
+            saveTag.putIntArray(COOKING_TIME_TAG, saveTime);
+            BlockItem.setBlockEntityData(stack, ModBlocks.STEAMER_BE.get(), saveTag);
+        }
 
         return stack;
+    }
+
+    private StructureTemplate.StructureBlockInfo reduceSteamerToSingleLayer(
+            StructureTemplate.StructureBlockInfo info, CompoundTag nbt) {
+        CompoundTag reducedNbt = nbt.copy();
+        NonNullList<ItemStack> items = readItems(reducedNbt);
+        int[] cookingProgress = normalizeArray(reducedNbt.getIntArray(COOKING_PROGRESS_TAG));
+        int[] cookingTime = normalizeArray(reducedNbt.getIntArray(COOKING_TIME_TAG));
+        for (int i = 4; i < 8; i++) {
+            items.set(i, ItemStack.EMPTY);
+            cookingProgress[i] = 0;
+            cookingTime[i] = 0;
+        }
+        saveItems(reducedNbt, items);
+        reducedNbt.putIntArray(COOKING_PROGRESS_TAG, cookingProgress);
+        reducedNbt.putIntArray(COOKING_TIME_TAG, cookingTime);
+        BlockState reducedState = info.state().setValue(SteamerBlock.HALF, true);
+        return new StructureTemplate.StructureBlockInfo(info.pos(), reducedState, reducedNbt);
+    }
+
+    private int[] normalizeArray(int[] source) {
+        if (source.length >= 8) {
+            return source;
+        }
+        int[] normalized = new int[8];
+        System.arraycopy(source, 0, normalized, 0, source.length);
+        return normalized;
     }
 
     /**
