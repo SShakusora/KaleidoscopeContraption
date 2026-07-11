@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 import java.util.List;
 
-@Mixin(value = ClientContraption.class, remap = false)
+@Mixin(ClientContraption.class)
 public interface ClientContraptionAccessor {
     @Accessor("renderedBlockEntities")
     List<BlockEntity> getRenderedBlockEntities();

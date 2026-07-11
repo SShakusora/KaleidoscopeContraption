@@ -5,7 +5,7 @@ import net.minecraft.world.food.FoodProperties;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-@Mixin(value = FoodBiteBlock.class, remap = false)
+@Mixin(FoodBiteBlock.class)
 public interface FoodBiteBlockAccessor {
     @Accessor("foodProperties")
     FoodProperties getFoodProperties();

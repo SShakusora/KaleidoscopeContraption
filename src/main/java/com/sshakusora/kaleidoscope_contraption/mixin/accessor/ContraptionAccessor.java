@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 import java.util.Map;
 
-@Mixin(value = Contraption.class, remap = false)
+@Mixin(Contraption.class)
 public interface ContraptionAccessor {
     @Accessor("updateTags")
     Map<BlockPos, CompoundTag> getUpdateTags();

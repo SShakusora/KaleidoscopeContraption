@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-@Mixin(value = Contraption.class, remap = false)
+@Mixin(Contraption.class)
 public interface ContraptionClientAccessor {
     @Accessor("clientContraption")
     AtomicReference<ClientContraption> getClientContraptionReference();
