@@ -132,6 +132,7 @@ public class KCContraptionChangedPacket {
             // 检查这个位置是否已经有方块（用于判断是更新还是新增）
             var existingInfo = contraptionEntity.getContraption().getBlocks().get(packet.localPos);
             boolean isNewBlock = (existingInfo == null) || existingInfo.state().isAir();
+            boolean blockStateChanged = existingInfo == null || !existingInfo.state().equals(packet.newState);
             MovementContext previousActorContext = findActorContext(
                     contraptionEntity.getContraption(), packet.localPos);
 
@@ -169,6 +170,10 @@ public class KCContraptionChangedPacket {
                 if (DevEnvUtil.isDevEnvironment()) {
                     LOGGER.info("[KCContraption] Refreshed entity bounding box");
                 }
+            }
+
+            if (blockStateChanged || isBlockRemoved) {
+                contraptionEntity.getContraption().invalidateColliders();
             }
 
             MovementContext updatedActorContext = findActorContext(

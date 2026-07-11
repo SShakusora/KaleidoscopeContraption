@@ -3,6 +3,7 @@ package com.sshakusora.kaleidoscope_contraption;
 import com.mojang.logging.LogUtils;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
 import com.sshakusora.kaleidoscope_contraption.registry.KCBlockMovementChecks;
+import com.sshakusora.kaleidoscope_contraption.registry.KCContraptionPlacements;
 import com.sshakusora.kaleidoscope_contraption.registry.KCInteractionBehaviours;
 import com.sshakusora.kaleidoscope_contraption.registry.KCMovementBehaviours;
 import net.minecraft.resources.ResourceLocation;
@@ -29,6 +30,7 @@ public class KaleidoscopeContraption {
             KCPacketHandler.register();
             // 注册交互行为
             KCMovementBehaviours.registerDefaults();
+            KCContraptionPlacements.registerDefaults();
             KCInteractionBehaviours.registerDefaults();
             // 注册方块移动检查（用于多部件方块正确组装）
             KCBlockMovementChecks.registerDefaults();

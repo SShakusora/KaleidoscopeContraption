@@ -6,10 +6,12 @@ import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
+import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionPlacementRegistry;
 import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccessor;
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -29,7 +31,7 @@ public class ContraptionInteractionUtil {
      * 更新Contraption中的方块数据，包括blocks、actors和updateTags，并同步到客户端
      */
     public static void updateContraptionData(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                               StructureTemplate.StructureBlockInfo newInfo) {
+                                             StructureTemplate.StructureBlockInfo newInfo) {
         updateContraptionDataLocally(contraptionEntity, localPos, newInfo);
 
         // 发送自定义数据包同步NBT数据到客户端
@@ -47,7 +49,7 @@ public class ContraptionInteractionUtil {
     }
 
     public static void updateContraptionDataWithBound(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                              StructureTemplate.StructureBlockInfo newInfo, AABB updatedBounds) {
+                                                      StructureTemplate.StructureBlockInfo newInfo, AABB updatedBounds) {
         updateContraptionDataLocally(contraptionEntity, localPos, newInfo);
 
         // 发送自定义数据包同步NBT数据到客户端
@@ -66,7 +68,7 @@ public class ContraptionInteractionUtil {
     }
 
     public static void updateContraptionDataWithResetRenderer(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                                               StructureTemplate.StructureBlockInfo newInfo) {
+                                                              StructureTemplate.StructureBlockInfo newInfo) {
         // Updating the live virtual BE and invalidating its caches is sufficient for
         // NBT-only changes; a full reset would discard client-only BER animation state.
         updateContraptionData(contraptionEntity, localPos, newInfo);
@@ -75,6 +77,16 @@ public class ContraptionInteractionUtil {
     public static void updateContraptionDataLocally(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
                                                     StructureTemplate.StructureBlockInfo newInfo) {
         Contraption contraption = contraptionEntity.getContraption();
+        StructureTemplate.StructureBlockInfo previousInfo = contraption.getBlocks().get(localPos);
+        if (previousInfo != null && previousInfo.nbt() != null
+                && previousInfo.nbt().contains(ContraptionPlacementRegistry.PLACEMENT_RULE_TAG)
+                && (newInfo.nbt() == null
+                || !newInfo.nbt().contains(ContraptionPlacementRegistry.PLACEMENT_RULE_TAG))) {
+            CompoundTag preservedNbt = newInfo.nbt() == null ? new CompoundTag() : newInfo.nbt().copy();
+            preservedNbt.putString(ContraptionPlacementRegistry.PLACEMENT_RULE_TAG,
+                    previousInfo.nbt().getString(ContraptionPlacementRegistry.PLACEMENT_RULE_TAG));
+            newInfo = new StructureTemplate.StructureBlockInfo(newInfo.pos(), newInfo.state(), preservedNbt);
+        }
         MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> existingActor = findActor(contraption, localPos);
         MovementBehaviour previousMovement = existingActor == null
                 ? null : MovementBehaviour.REGISTRY.get(existingActor.getLeft().state());
@@ -178,7 +190,7 @@ public class ContraptionInteractionUtil {
         if (contraptionEntity.level().isClientSide) {
             return;
         }
-        
+
         BlockState airState = Blocks.AIR.defaultBlockState();
         KCPacketHandler.sendToTracking(
                 new KCContraptionChangedPacket(
@@ -271,8 +283,8 @@ public class ContraptionInteractionUtil {
     /**
      * 播放Contraption中方块的音效
      */
-    public static void playSound(AbstractContraptionEntity contraptionEntity, BlockPos localPos, 
-                                  SoundEvent soundEvent, SoundSource source, float volume, float pitch) {
+    public static void playSound(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
+                                 SoundEvent soundEvent, SoundSource source, float volume, float pitch) {
         Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
         BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
         contraptionEntity.level().playSound(null, soundPos, soundEvent, source, volume, pitch);
@@ -282,7 +294,7 @@ public class ContraptionInteractionUtil {
      * 播放Contraption中方块的音效（使用玩家作为声音源）
      */
     public static void playSound(Player player, AbstractContraptionEntity contraptionEntity, BlockPos localPos,
-                                  SoundEvent soundEvent, SoundSource source, float volume, float pitch) {
+                                 SoundEvent soundEvent, SoundSource source, float volume, float pitch) {
         Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
         BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
         contraptionEntity.level().playSound(player, soundPos, soundEvent, source, volume, pitch);
