@@ -25,8 +25,8 @@ public class TableChoppingBoardPlacementRule implements ContraptionPlacementRule
         CompoundTag nbt = new CompoundTag();
         nbt.putInt("MaxCutCount", 0);
         nbt.putInt("CurrentCutCount", 0);
-        nbt.put("CurrentCutStack", ItemStack.EMPTY.serializeNBT());
-        nbt.put("ResultItem", ItemStack.EMPTY.serializeNBT());
+        nbt.put("CurrentCutStack", ItemStack.EMPTY.saveOptional(context.contraptionEntity().level().registryAccess()));
+        nbt.put("ResultItem", ItemStack.EMPTY.saveOptional(context.contraptionEntity().level().registryAccess()));
         nbt.putString("id", "kaleidoscope_cookery:chopping_board");
         return ContraptionPlacementResult.single(new StructureTemplate.StructureBlockInfo(
                 context.targetPos(), state, nbt));

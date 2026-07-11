@@ -4,16 +4,16 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.sshakusora.kaleidoscope_contraption.KaleidoscopeContraption;
 import com.sshakusora.kaleidoscope_contraption.client.gui.overlay.ContraptionPotOverlay;
 import net.minecraft.client.KeyMapping;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
-import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import org.lwjgl.glfw.GLFW;
 
-import static net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.CROSSHAIR;
+import static net.neoforged.neoforge.client.gui.VanillaGuiLayers.CROSSHAIR;
 
-@Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT, modid = KaleidoscopeContraption.MOD_ID)
+@EventBusSubscriber(value = Dist.CLIENT, modid = KaleidoscopeContraption.MOD_ID)
 public class ClientSetupEvent {
     public static final String KEY_CATEGORY = "key.category.kaleidoscope_contraption";
 
@@ -26,9 +26,9 @@ public class ClientSetupEvent {
     );
 
     @SubscribeEvent
-    public static void onRegisterGuiOverlays(RegisterGuiOverlaysEvent event) {
+    public static void onRegisterGuiOverlays(RegisterGuiLayersEvent event) {
         // 注册ContraptionPotOverlay
-        event.registerAbove(CROSSHAIR.id(), "contraption_pot_overlay", new ContraptionPotOverlay());
+        event.registerAbove(CROSSHAIR, KaleidoscopeContraption.asResource("contraption_pot_overlay"), new ContraptionPotOverlay());
     }
 
     @SubscribeEvent

@@ -12,13 +12,14 @@ abstract class BlockEntityDelegatingMovingInteraction extends MovingInteractionB
     protected <T extends BlockEntity> T loadBlockEntity(T blockEntity, CompoundTag tag,
                                                          AbstractContraptionEntity contraptionEntity) {
         blockEntity.setLevel(contraptionEntity.level());
-        blockEntity.load(tag == null ? new CompoundTag() : tag.copy());
+        blockEntity.loadWithComponents(tag == null ? new CompoundTag() : tag.copy(),
+                contraptionEntity.level().registryAccess());
         return blockEntity;
     }
 
     protected void saveBlockEntity(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
                                    StructureTemplate.StructureBlockInfo info, BlockEntity blockEntity) {
-        CompoundTag tag = blockEntity.saveWithFullMetadata();
+        CompoundTag tag = blockEntity.saveWithFullMetadata(contraptionEntity.level().registryAccess());
         tag.remove("x");
         tag.remove("y");
         tag.remove("z");

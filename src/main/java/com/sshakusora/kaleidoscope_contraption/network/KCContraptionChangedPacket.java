@@ -25,6 +25,10 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
@@ -33,16 +37,18 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.AABB;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.slf4j.Logger;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 
-public class KCContraptionChangedPacket {
+public class KCContraptionChangedPacket implements CustomPacketPayload {
+    public static final Type<KCContraptionChangedPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("kaleidoscope_contraption", "contraption_changed"));
+    public static final StreamCodec<RegistryFriendlyByteBuf, KCContraptionChangedPacket> STREAM_CODEC =
+            StreamCodec.of((buffer, packet) -> encode(packet, buffer), KCContraptionChangedPacket::decode);
     private static final Logger LOGGER = LogUtils.getLogger();
     private final int entityId;
     private final BlockPos localPos;
@@ -101,15 +107,12 @@ public class KCContraptionChangedPacket {
         return new KCContraptionChangedPacket(entityId, localPos, newState, newNbt, updatedBounds, needResetRender);
     }
 
-    public static void handle(KCContraptionChangedPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
-        context.enqueueWork(() -> {
-            if (context.getDirection().getReceptionSide().isClient()) {
-                handleClient(packet);
-            }
-        });
-        context.setPacketHandled(true);
+    public static void handle(KCContraptionChangedPacket packet, IPayloadContext context) {
+        context.enqueueWork(() -> handleClient(packet));
     }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
     @OnlyIn(Dist.CLIENT)
     private static void handleClient(KCContraptionChangedPacket packet) {
@@ -259,7 +262,7 @@ public class KCContraptionChangedPacket {
                 updatedBlockEntity.setBlockState(renderState);
             }
             prepareTransientRenderState(updatedBlockEntity, oldInfo, newInfo);
-            updatedBlockEntity.handleUpdateTag(Objects.requireNonNull(newInfo.nbt()).copy());
+            updatedBlockEntity.handleUpdateTag(Objects.requireNonNull(newInfo.nbt()).copy(), renderLevel.registryAccess());
         }
 
         boolean shouldRenderBlockEntity = updatedBlockEntity != null && desiredRenderInfo.rendered();

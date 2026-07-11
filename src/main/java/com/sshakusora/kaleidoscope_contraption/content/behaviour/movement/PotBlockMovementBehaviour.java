@@ -1,6 +1,7 @@
 package com.sshakusora.kaleidoscope_contraption.content.behaviour.movement;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock;
+import com.github.ysbbbbbb.kaleidoscopecookery.crafting.container.SimpleInput;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.PotRecipe;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModParticles;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModRecipes;
@@ -8,6 +9,7 @@ import com.github.ysbbbbbb.kaleidoscopecookery.init.registry.FoodBiteRegistry;
 import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.Quality;
 import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.QualityEvaluator;
 import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.QualityUtils;
+import com.mojang.serialization.JsonOps;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionDataUtil;
@@ -26,6 +28,7 @@ import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
@@ -142,7 +145,7 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
 
         // 时间到，自动开始烹饪（如果有食材）
         if (currentTick == 0) {
-            if (isEmpty(nbt)) {
+            if (isEmpty(nbt, context.world)) {
                 // 没有食材，重置状态
                 resetPot(context, state, nbt, info);
                 playExtinguishSound(context);
@@ -179,8 +182,9 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
             int stirFryCount = newNbt.getInt(STIR_FRY_COUNT);
             if (stirFryCount > 0) {
                 // 翻炒不足，变成迷之炒菜
-                newNbt.putString(CARRIER, Ingredient.of(Items.BOWL).toJson().toString());
-                newNbt.put(RESULT, new ItemStack(FoodBiteRegistry.getItem(SUSPICIOUS_STIR_FRY)).serializeNBT());
+                newNbt.putString(CARRIER, Ingredient.CODEC.encodeStart(JsonOps.INSTANCE, Ingredient.of(Items.BOWL)).getOrThrow().toString());
+                newNbt.put(RESULT, new ItemStack(FoodBiteRegistry.getItem(SUSPICIOUS_STIR_FRY))
+                        .save(context.world.registryAccess(), new CompoundTag()));
             }
 
             newNbt.putInt(CURRENT_TICK, TAKEOUT_TIME);
@@ -284,41 +288,41 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
      * 开始烹饪
      */
     private void startCooking(MovementContext context, BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
-        NonNullList<ItemStack> inputs = readInputs(nbt);
-        SimpleContainer container = getContainer(inputs);
+        NonNullList<ItemStack> inputs = readInputs(nbt, context.world);
+        SimpleInput input = new SimpleInput(inputs);
 
         CompoundTag newNbt = nbt.copy();
         newNbt.putInt(STATUS, COOKING);
 
         var manager = context.world.getRecipeManager();
-        var recipe = manager.getRecipeFor(ModRecipes.POT_RECIPE, container, context.world);
+        var recipe = manager.getRecipeFor(ModRecipes.POT_RECIPE, input, context.world);
         if (recipe.isPresent()) {
-            applyRecipe(newNbt, recipe.get().carrier(),
-                    recipe.get().assemble(container, context.world.registryAccess()),
-                    recipe.get().time(), recipe.get().stirFryCount());
+            var value = recipe.get().value();
+            applyRecipe(newNbt, value.carrier(), value.assemble(input, context.world.registryAccess()),
+                    value.time(), value.stirFryCount(), context.world);
         } else {
-            var flexRecipe = manager.getRecipeFor(ModRecipes.FLEX_POT_RECIPE, container, context.world);
+            var flexRecipe = manager.getRecipeFor(ModRecipes.FLEX_POT_RECIPE, input, context.world);
             if (flexRecipe.isPresent()) {
-                ItemStack result = flexRecipe.get().assemble(container, context.world.registryAccess());
+                var value = flexRecipe.get().value();
+                ItemStack result = value.assemble(input, context.world.registryAccess());
                 if (context.world instanceof ServerLevel serverLevel) {
                     Quality quality = QualityEvaluator.evaluate(
-                            inputs, flexRecipe.get().ingredients(), flexRecipe.get().getId(), serverLevel.getSeed());
+                            inputs, value.ingredients(), flexRecipe.get().id(), serverLevel.getSeed());
                     QualityUtils.setQuality(result, quality);
                 }
-                applyRecipe(newNbt, flexRecipe.get().carrier(), result,
-                        flexRecipe.get().time(), flexRecipe.get().stirFryCount());
+                applyRecipe(newNbt, value.carrier(), result, value.time(), value.stirFryCount(), context.world);
             } else {
                 applyRecipe(newNbt, Ingredient.of(Items.BOWL),
-                        new ItemStack(FoodBiteRegistry.getItem(SUSPICIOUS_STIR_FRY)), 10 * 20, 0);
+                        new ItemStack(FoodBiteRegistry.getItem(SUSPICIOUS_STIR_FRY)), 10 * 20, 0, context.world);
             }
         }
 
         ContraptionDataUtil.updateContraptionData(context, state, newNbt, true);
     }
 
-    private void applyRecipe(CompoundTag nbt, Ingredient carrier, ItemStack result, int time, int stirFryCount) {
-        nbt.putString(CARRIER, carrier.toJson().toString());
-        nbt.put(RESULT, result.serializeNBT());
+    private void applyRecipe(CompoundTag nbt, Ingredient carrier, ItemStack result, int time, int stirFryCount, Level level) {
+        nbt.putString(CARRIER, Ingredient.CODEC.encodeStart(JsonOps.INSTANCE, carrier).getOrThrow().toString());
+        nbt.put(RESULT, result.save(level.registryAccess(), new CompoundTag()));
         nbt.putInt(CURRENT_TICK, time);
         nbt.putInt(STIR_FRY_COUNT, stirFryCount);
     }
@@ -328,9 +332,9 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
      */
     private void resetPot(MovementContext context, BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
         CompoundTag newNbt = new CompoundTag();
-        newNbt.put(INPUTS, ContainerHelper.saveAllItems(new CompoundTag(), NonNullList.withSize(PotRecipe.RECIPES_SIZE, ItemStack.EMPTY)));
-        newNbt.putString(CARRIER, Ingredient.EMPTY.toJson().toString());
-        newNbt.put(RESULT, ItemStack.EMPTY.serializeNBT());
+        newNbt.put(INPUTS, ContainerHelper.saveAllItems(new CompoundTag(), NonNullList.withSize(PotRecipe.RECIPES_SIZE, ItemStack.EMPTY), context.world.registryAccess()));
+        newNbt.putString(CARRIER, Ingredient.CODEC.encodeStart(JsonOps.INSTANCE, Ingredient.EMPTY).getOrThrow().toString());
+        newNbt.put(RESULT, ItemStack.EMPTY.saveOptional(context.world.registryAccess()));
         newNbt.putInt(STATUS, PUT_INGREDIENT);
         newNbt.putInt(CURRENT_TICK, 0);
         newNbt.putInt(STIR_FRY_COUNT, 0);
@@ -393,10 +397,10 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
     /**
      * 读取原料列表
      */
-    private NonNullList<ItemStack> readInputs(CompoundTag nbt) {
+    private NonNullList<ItemStack> readInputs(CompoundTag nbt, Level level) {
         NonNullList<ItemStack> inputs = NonNullList.withSize(PotRecipe.RECIPES_SIZE, ItemStack.EMPTY);
         if (nbt.contains(INPUTS, Tag.TAG_COMPOUND)) {
-            ContainerHelper.loadAllItems(nbt.getCompound(INPUTS), inputs);
+            ContainerHelper.loadAllItems(nbt.getCompound(INPUTS), inputs, level.registryAccess());
         }
         return inputs;
     }
@@ -418,8 +422,8 @@ public class PotBlockMovementBehaviour implements MovementBehaviour {
     /**
      * 检查锅是否为空
      */
-    private boolean isEmpty(CompoundTag nbt) {
-        NonNullList<ItemStack> inputs = readInputs(nbt);
+    private boolean isEmpty(CompoundTag nbt, Level level) {
+        NonNullList<ItemStack> inputs = readInputs(nbt, level);
         for (ItemStack stack : inputs) {
             if (!stack.isEmpty()) {
                 return false;

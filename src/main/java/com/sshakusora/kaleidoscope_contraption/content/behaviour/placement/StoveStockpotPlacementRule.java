@@ -34,10 +34,10 @@ public class StoveStockpotPlacementRule implements ContraptionPlacementRule {
 
         CompoundTag nbt = new CompoundTag();
         nbt.put("Inputs", ContainerHelper.saveAllItems(new CompoundTag(),
-                NonNullList.withSize(StockpotRecipe.RECIPES_SIZE, ItemStack.EMPTY)));
+                NonNullList.withSize(StockpotRecipe.RECIPES_SIZE, ItemStack.EMPTY), context.contraptionEntity().level().registryAccess()));
         nbt.putString("RecipeId", "kaleidoscope_cookery:stockpot/empty");
         nbt.putString("SoupBaseId", ModSoupBases.WATER.toString());
-        nbt.put("Result", ItemStack.EMPTY.serializeNBT());
+        nbt.put("Result", ItemStack.EMPTY.saveOptional(context.contraptionEntity().level().registryAccess()));
         nbt.putInt("Status", 0);
         nbt.putInt("CurrentTick", -1);
         nbt.putInt("TakeoutCount", 0);
@@ -48,7 +48,7 @@ public class StoveStockpotPlacementRule implements ContraptionPlacementRule {
     @Override
     public void afterPlaced(ContraptionPlacementContext context, ContraptionPlacementResult result) {
         if (isLit(context)) {
-            ModTrigger.EVENT.trigger(context.player(), ModEventTriggerType.PLACE_STOCKPOT_ON_HEAT_SOURCE);
+            ModTrigger.EVENT.get().trigger(context.player(), ModEventTriggerType.PLACE_STOCKPOT_ON_HEAT_SOURCE);
         }
     }
 
@@ -64,7 +64,7 @@ public class StoveStockpotPlacementRule implements ContraptionPlacementRule {
         if (status != 0 && status != 1) {
             return Optional.empty();
         }
-        if (status == 1 && !isContainerEmpty(nbt)) {
+        if (status == 1 && !isContainerEmpty(nbt, context)) {
             return Optional.empty();
         }
         return Optional.of(ContraptionRemovalResult.single(
@@ -82,12 +82,12 @@ public class StoveStockpotPlacementRule implements ContraptionPlacementRule {
         return state.hasProperty(BlockStateProperties.LIT) && state.getValue(BlockStateProperties.LIT);
     }
 
-    private boolean isContainerEmpty(CompoundTag nbt) {
+    private boolean isContainerEmpty(CompoundTag nbt, ContraptionRemovalContext context) {
         if (nbt == null || !nbt.contains("Inputs", Tag.TAG_COMPOUND)) {
             return true;
         }
         NonNullList<ItemStack> items = NonNullList.withSize(StockpotRecipe.RECIPES_SIZE, ItemStack.EMPTY);
-        ContainerHelper.loadAllItems(nbt.getCompound("Inputs"), items);
+        ContainerHelper.loadAllItems(nbt.getCompound("Inputs"), items, context.contraptionEntity().level().registryAccess());
         return items.stream().allMatch(ItemStack::isEmpty);
     }
 }

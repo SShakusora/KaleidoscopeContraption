@@ -3,7 +3,7 @@ package com.sshakusora.kaleidoscope_contraption.content.behaviour.movement;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.StockpotBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.kitchen.StockpotBlockEntity;
 import com.github.ysbbbbbb.kaleidoscopecookery.client.particle.StockpotParticleOptions;
-import com.github.ysbbbbbb.kaleidoscopecookery.crafting.container.StockpotContainer;
+import com.github.ysbbbbbb.kaleidoscopecookery.crafting.container.StockpotInput;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.StockpotRecipe;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.StockpotVisuals;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.serializer.StockpotRecipeSerializer;
@@ -15,6 +15,7 @@ import com.github.ysbbbbbb.kaleidoscopecookery.init.ModSoupBases;
 import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.Quality;
 import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.QualityEvaluator;
 import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.QualityUtils;
+import com.mojang.serialization.JsonOps;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionDataUtil;
@@ -31,6 +32,7 @@ import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.Vec3;
@@ -116,7 +118,7 @@ public class StockpotBlockMovementBehaviour implements MovementBehaviour {
 
         // 如果当前状态是放入素材，且素材不为空
         // 因为 isEmpty() 可能耗时，所以每隔 5 tick 检查一次
-        if (status == PUT_INGREDIENT && context.world.getGameTime() % 5 == 0 && !isEmpty(nbt)) {
+        if (status == PUT_INGREDIENT && context.world.getGameTime() % 5 == 0 && !isEmpty(nbt, context.world)) {
             startCooking(context, state, nbt, info);
             return;
         }
@@ -139,13 +141,13 @@ public class StockpotBlockMovementBehaviour implements MovementBehaviour {
      * 开始烹饪
      */
     private void startCooking(MovementContext context, BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
-        NonNullList<ItemStack> inputs = readInputs(nbt);
+        NonNullList<ItemStack> inputs = readInputs(nbt, context.world);
         ResourceLocation soupBaseId = ResourceLocation.tryParse(nbt.getString(SOUP_BASE_ID));
         if (soupBaseId == null) {
             soupBaseId = ModSoupBases.WATER;
         }
 
-        StockpotContainer container = new StockpotContainer(inputs, soupBaseId);
+        StockpotInput container = new StockpotInput(inputs, soupBaseId);
 
         CompoundTag newNbt = nbt.copy();
         newNbt.putInt(STATUS, COOKING);
@@ -153,21 +155,23 @@ public class StockpotBlockMovementBehaviour implements MovementBehaviour {
         var manager = context.world.getRecipeManager();
         var recipe = manager.getRecipeFor(ModRecipes.STOCKPOT_RECIPE, container, context.world);
         if (recipe.isPresent()) {
-            ItemStack result = recipe.get().assemble(container, context.world.registryAccess());
-            applyRecipe(newNbt, recipe.get().getId(), recipe.get().carrier(), result, recipe.get().time());
+            var value = recipe.get().value();
+            ItemStack result = value.assemble(container, context.world.registryAccess());
+            applyRecipe(newNbt, recipe.get().id(), value.carrier(), result, value.time(), context.world);
         } else {
             var flexRecipe = manager.getRecipeFor(ModRecipes.FLEX_STOCKPOT_RECIPE, container, context.world);
             if (flexRecipe.isPresent()) {
-                ItemStack result = flexRecipe.get().assemble(container, context.world.registryAccess());
+                var value = flexRecipe.get().value();
+                ItemStack result = value.assemble(container, context.world.registryAccess());
                 if (context.world instanceof ServerLevel serverLevel) {
                     Quality quality = QualityEvaluator.evaluate(
-                            inputs, flexRecipe.get().ingredients(), flexRecipe.get().getId(), serverLevel.getSeed());
+                            inputs, value.ingredients(), flexRecipe.get().id(), serverLevel.getSeed());
                     QualityUtils.setQuality(result, quality);
                 }
-                applyRecipe(newNbt, flexRecipe.get().getId(), flexRecipe.get().carrier(), result, flexRecipe.get().time());
+                applyRecipe(newNbt, flexRecipe.get().id(), value.carrier(), result, value.time(), context.world);
             } else {
                 applyRecipe(newNbt, StockpotRecipeSerializer.EMPTY_ID, Ingredient.of(Items.BOWL),
-                        new ItemStack(Items.SUSPICIOUS_STEW), StockpotRecipeSerializer.DEFAULT_TIME);
+                        new ItemStack(Items.SUSPICIOUS_STEW), StockpotRecipeSerializer.DEFAULT_TIME, context.world);
             }
         }
 
@@ -175,10 +179,10 @@ public class StockpotBlockMovementBehaviour implements MovementBehaviour {
     }
 
     private void applyRecipe(CompoundTag nbt, ResourceLocation recipeId, Ingredient carrier,
-                             ItemStack result, int time) {
+                             ItemStack result, int time, Level level) {
         nbt.putString(RECIPE_ID, recipeId.toString());
-        nbt.putString(CARRIER, carrier.toJson().toString());
-        nbt.put(RESULT, result.serializeNBT());
+        nbt.putString(CARRIER, Ingredient.CODEC.encodeStart(JsonOps.INSTANCE, carrier).getOrThrow().toString());
+        nbt.put(RESULT, result.save(level.registryAccess(), new CompoundTag()));
         nbt.putInt(CURRENT_TICK, time);
         nbt.putInt(TAKEOUT_COUNT, Math.min(result.getCount(), 9));
     }
@@ -193,7 +197,7 @@ public class StockpotBlockMovementBehaviour implements MovementBehaviour {
 
         // 清空inputs
         newNbt.put(INPUTS, ContainerHelper.saveAllItems(new CompoundTag(),
-                NonNullList.withSize(StockpotRecipe.RECIPES_SIZE, ItemStack.EMPTY)));
+                NonNullList.withSize(StockpotRecipe.RECIPES_SIZE, ItemStack.EMPTY), context.world.registryAccess()));
 
         ContraptionDataUtil.updateContraptionData(context, state, newNbt, true);
     }
@@ -255,19 +259,19 @@ public class StockpotBlockMovementBehaviour implements MovementBehaviour {
         ResourceLocation recipeId = ResourceLocation.tryParse(nbt.getString(RECIPE_ID));
         if (recipeId != null && !recipeId.equals(StockpotRecipeSerializer.EMPTY_ID)) {
             StockpotVisuals visuals = null;
-            StockpotRecipe recipe = context.world.getRecipeManager()
+            var recipe = context.world.getRecipeManager()
                     .getAllRecipesFor(ModRecipes.STOCKPOT_RECIPE).stream()
-                    .filter(candidate -> candidate.getId().equals(recipeId))
+                    .filter(candidate -> candidate.id().equals(recipeId))
                     .findFirst().orElse(null);
             if (recipe != null) {
-                visuals = recipe.visuals();
+                visuals = recipe.value().visuals();
             } else {
                 var flexRecipe = context.world.getRecipeManager()
                         .getAllRecipesFor(ModRecipes.FLEX_STOCKPOT_RECIPE).stream()
-                        .filter(candidate -> candidate.getId().equals(recipeId))
+                        .filter(candidate -> candidate.id().equals(recipeId))
                         .findFirst().orElse(null);
                 if (flexRecipe != null) {
-                    visuals = flexRecipe.visuals();
+                    visuals = flexRecipe.value().visuals();
                 }
             }
             if (visuals != null) {
@@ -294,10 +298,10 @@ public class StockpotBlockMovementBehaviour implements MovementBehaviour {
     /**
      * 读取原料列表
      */
-    private NonNullList<ItemStack> readInputs(CompoundTag nbt) {
+    private NonNullList<ItemStack> readInputs(CompoundTag nbt, Level level) {
         NonNullList<ItemStack> inputs = NonNullList.withSize(StockpotRecipe.RECIPES_SIZE, ItemStack.EMPTY);
         if (nbt.contains(INPUTS, Tag.TAG_COMPOUND)) {
-            ContainerHelper.loadAllItems(nbt.getCompound(INPUTS), inputs);
+            ContainerHelper.loadAllItems(nbt.getCompound(INPUTS), inputs, level.registryAccess());
         }
         return inputs;
     }
@@ -305,8 +309,8 @@ public class StockpotBlockMovementBehaviour implements MovementBehaviour {
     /**
      * 检查汤锅是否为空
      */
-    private boolean isEmpty(CompoundTag nbt) {
-        NonNullList<ItemStack> inputs = readInputs(nbt);
+    private boolean isEmpty(CompoundTag nbt, Level level) {
+        NonNullList<ItemStack> inputs = readInputs(nbt, level);
         for (ItemStack stack : inputs) {
             if (!stack.isEmpty()) {
                 return false;

@@ -19,7 +19,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.minecraftforge.items.ItemStackHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +37,7 @@ public class TableFoodPlacementRule implements ContraptionPlacementRule {
         CompoundTag nbt = context.supportInfo().nbt();
         ItemStackHandler tableItems = new ItemStackHandler(4);
         if (nbt != null && nbt.contains(SHOW_ITEMS)) {
-            tableItems.deserializeNBT(nbt.getCompound(SHOW_ITEMS));
+            tableItems.deserializeNBT(context.contraptionEntity().level().registryAccess(), nbt.getCompound(SHOW_ITEMS));
         }
         int lastIndex = ItemUtils.getLastStack(tableItems).getLeft();
         return context.player().isShiftKeyDown() || lastIndex >= tableItems.getSlots() - 1;

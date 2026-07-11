@@ -3,7 +3,7 @@ package com.sshakusora.kaleidoscope_contraption.content.behaviour.movement;
 import com.github.ysbbbbbb.kaleidoscopecookery.api.blockentity.ITeapot;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.TeapotBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.kitchen.TeapotBlockEntity;
-import com.github.ysbbbbbb.kaleidoscopecookery.crafting.container.TeapotContainer;
+import com.github.ysbbbbbb.kaleidoscopecookery.crafting.container.TeapotInput;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.serializer.TeapotRecipeSerializer;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModParticles;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModRecipes;
@@ -60,7 +60,7 @@ public class TeapotBlockMovementBehaviour implements MovementBehaviour {
         if (fluidId == null || fluidId.equals(TeapotRecipeSerializer.EMPTY_TEA_FLUID)) return;
 
         playEffects(context, false);
-        ItemStack input = ItemStack.of(nbt.getCompound(INPUT));
+        ItemStack input = ItemStack.parseOptional(context.world.registryAccess(), nbt.getCompound(INPUT));
         int currentTick = nbt.getInt(CURRENT_TICK);
         CompoundTag updated = nbt.copy();
         boolean sync = false;
@@ -70,17 +70,19 @@ public class TeapotBlockMovementBehaviour implements MovementBehaviour {
             if (currentTick > 0) {
                 updated.putInt(CURRENT_TICK, Math.max(-1, currentTick - 23));
             } else {
+                TeapotInput recipeInput = new TeapotInput(input, fluidId);
                 var recipe = context.world.getRecipeManager().getRecipeFor(
-                        ModRecipes.TEAPOT_RECIPE, new TeapotContainer(input, fluidId), context.world);
+                        ModRecipes.TEAPOT_RECIPE, recipeInput, context.world);
                 if (recipe.isPresent()) {
-                    updated.put(RESULT, recipe.get().assemble(
-                            new TeapotContainer(input, fluidId), context.world.registryAccess()).serializeNBT());
-                    updated.putInt(CURRENT_TICK, recipe.get().time());
+                    var value = recipe.get().value();
+                    updated.put(RESULT, value.assemble(recipeInput, context.world.registryAccess())
+                            .save(context.world.registryAccess(), new CompoundTag()));
+                    updated.putInt(CURRENT_TICK, value.time());
                     updated.putInt(STATUS, ITeapot.PROCESSING);
                 } else {
                     popResource(context, input);
-                    updated.put(INPUT, ItemStack.EMPTY.serializeNBT());
-                    updated.put(RESULT, ItemStack.EMPTY.serializeNBT());
+                    updated.put(INPUT, ItemStack.EMPTY.saveOptional(context.world.registryAccess()));
+                    updated.put(RESULT, ItemStack.EMPTY.saveOptional(context.world.registryAccess()));
                     updated.putInt(CURRENT_TICK, -1);
                 }
                 sync = true;

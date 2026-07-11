@@ -19,6 +19,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentUtils;
@@ -27,23 +28,22 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.function.Function;
 
-@Mod.EventBusSubscriber(modid = KaleidoscopeContraption.MOD_ID, value = Dist.CLIENT)
+@EventBusSubscriber(modid = KaleidoscopeContraption.MOD_ID, value = Dist.CLIENT)
 public final class ContraptionTeapotTextRenderer {
     private static final Function<ResourceLocation, Component> FLUID_NAME_CACHE = Util.memoize(id -> {
         if (id.equals(TeapotRecipeSerializer.EMPTY_TEA_FLUID)) {
             return Component.translatable("mco.configure.world.slot.empty");
         }
-        Fluid fluid = ForgeRegistries.FLUIDS.getValue(id);
+        Fluid fluid = BuiltInRegistries.FLUID.get(id);
         return fluid == null
                 ? Component.literal(id.toString())
                 : Component.translatable(fluid.getFluidType().getDescriptionId());
@@ -65,14 +65,15 @@ public final class ContraptionTeapotTextRenderer {
             return;
         }
 
-        Target target = findTarget(level, player, event.getPartialTick());
+        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        Target target = findTarget(level, player, partialTick);
         if (target == null) {
             return;
         }
 
         Vec3 textPosition = target.entity().toGlobalVector(
                 Vec3.atLowerCornerWithOffset(target.teapot().getBlockPos(), 0.5, 1.0, 0.5),
-                event.getPartialTick());
+                partialTick);
         Vec3 cameraPosition = event.getCamera().getPosition();
 
         PoseStack poseStack = event.getPoseStack();

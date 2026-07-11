@@ -15,6 +15,7 @@ import com.github.ysbbbbbb.kaleidoscopecookery.init.tag.TagMod;
 import com.github.ysbbbbbb.kaleidoscopecookery.util.ItemUtils;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import com.mojang.serialization.JsonOps;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionRemovalManager;
@@ -38,6 +39,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.Vec3;
@@ -124,7 +126,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
         }
 
         // 取出汤底
-        if (status == PUT_INGREDIENT && isEmpty(nbt)) {
+        if (status == PUT_INGREDIENT && isEmpty(nbt, contraptionEntity.level())) {
             if (removeSoupBase(player, contraptionEntity, localPos, state, nbt, itemInHand, info)) {
                 return true;
             }
@@ -152,7 +154,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
             if (!contraptionEntity.level().isClientSide) {
                 // 更新NBT - 保存盖子物品
                 CompoundTag newNbt = nbt.copy();
-                newNbt.put(LID_ITEM, stack.split(1).save(new CompoundTag()));
+                newNbt.put(LID_ITEM, stack.split(1).save(contraptionEntity.level().registryAccess(), new CompoundTag()));
 
                 // 更新BlockState
                 BlockState newState = state.setValue(StockpotBlock.HAS_LID, true);
@@ -166,7 +168,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
                 BlockPos soundPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
                 contraptionEntity.level().playSound(player, soundPos, SoundEvents.LANTERN_PLACE, SoundSource.BLOCKS, 0.5F, 0.5F);
 
-                ModTrigger.EVENT.trigger(player, ModEventTriggerType.USE_LID_ON_STOCKPOT);
+                ModTrigger.EVENT.get().trigger(player, ModEventTriggerType.USE_LID_ON_STOCKPOT);
             }
             return true;
         }
@@ -177,7 +179,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
                 // 获取盖子物品
                 ItemStack lidItem;
                 if (nbt.contains(LID_ITEM, Tag.TAG_COMPOUND)) {
-                    lidItem = ItemStack.of(nbt.getCompound(LID_ITEM));
+                    lidItem = ItemStack.parseOptional(contraptionEntity.level().registryAccess(), nbt.getCompound(LID_ITEM));
                 } else {
                     lidItem = ModItems.STOCKPOT_LID.get().getDefaultInstance();
                 }
@@ -228,7 +230,8 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
                     // 初始化inputs
                     if (!newNbt.contains(INPUTS, Tag.TAG_COMPOUND)) {
                         newNbt.put(INPUTS, ContainerHelper.saveAllItems(new CompoundTag(),
-                                NonNullList.withSize(StockpotRecipe.RECIPES_SIZE, ItemStack.EMPTY)));
+                                NonNullList.withSize(StockpotRecipe.RECIPES_SIZE, ItemStack.EMPTY),
+                                contraptionEntity.level().registryAccess()));
                     }
 
                     StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
@@ -242,7 +245,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
                     }
                     ItemUtils.getItemToLivingEntity(player, container);
 
-                    ModTrigger.EVENT.trigger(player, ModEventTriggerType.PUT_SOUP_BASE_IN_STOCKPOT);
+                    ModTrigger.EVENT.get().trigger(player, ModEventTriggerType.PUT_SOUP_BASE_IN_STOCKPOT);
                 }
                 return true;
             }
@@ -301,7 +304,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
         }
 
         // 读取当前原料
-        NonNullList<ItemStack> inputs = readInputs(nbt);
+        NonNullList<ItemStack> inputs = readInputs(nbt, contraptionEntity.level());
 
         for (int i = 0; i < inputs.size(); i++) {
             ItemStack item = inputs.get(i);
@@ -316,7 +319,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
                 // 更新NBT
                 if (!contraptionEntity.level().isClientSide) {
                     CompoundTag newNbt = nbt.copy();
-                    saveInputs(newNbt, inputs);
+                    saveInputs(newNbt, inputs, contraptionEntity.level());
                     StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                             info.pos(), state, newNbt);
                     ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
@@ -344,7 +347,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
         }
 
         // 读取当前原料
-        NonNullList<ItemStack> inputs = readInputs(nbt);
+        NonNullList<ItemStack> inputs = readInputs(nbt, contraptionEntity.level());
 
         for (int i = inputs.size() - 1; i >= 0; i--) {
             ItemStack stack = inputs.get(i);
@@ -363,7 +366,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
 
                 // 更新NBT
                 CompoundTag newNbt = nbt.copy();
-                saveInputs(newNbt, inputs);
+                saveInputs(newNbt, inputs, contraptionEntity.level());
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), state, newNbt);
                 ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
@@ -374,7 +377,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
                     ISoupBase soupBase = SoupBaseManager.getSoupBase(soupBaseId);
                     if (soupBase instanceof FluidSoupBase fluidSoupBase && fluidSoupBase.getFluid().getFluidType().getTemperature() > 500) {
                         player.hurt(contraptionEntity.level().damageSources().inFire(), 1);
-                        ModTrigger.EVENT.trigger(player, ModEventTriggerType.HURT_WHEN_TAKEOUT_FROM_STOCKPOT);
+                        ModTrigger.EVENT.get().trigger(player, ModEventTriggerType.HURT_WHEN_TAKEOUT_FROM_STOCKPOT);
                     }
                 }
             }
@@ -409,7 +412,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
             return false;
         }
 
-        ItemStack result = readResult(nbt);
+        ItemStack result = readResult(nbt, contraptionEntity.level());
         if (result.isEmpty()) {
             return false;
         }
@@ -449,9 +452,9 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
                 newNbt.putInt(STATUS, PUT_SOUP_BASE);
                 newNbt.putString(SOUP_BASE_ID, ModSoupBases.WATER.toString());
                 newNbt.putString(RECIPE_ID, StockpotRecipeSerializer.EMPTY_ID.toString());
-                newNbt.put(RESULT, ItemStack.EMPTY.serializeNBT());
+                newNbt.put(RESULT, ItemStack.EMPTY.saveOptional(contraptionEntity.level().registryAccess()));
                 newNbt.putInt(CURRENT_TICK, -1);
-                saveInputs(newNbt, NonNullList.withSize(StockpotRecipe.RECIPES_SIZE, ItemStack.EMPTY));
+                saveInputs(newNbt, NonNullList.withSize(StockpotRecipe.RECIPES_SIZE, ItemStack.EMPTY), contraptionEntity.level());
             }
 
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
@@ -487,7 +490,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
             return false;
         }
 
-        if (status == PUT_INGREDIENT && !isEmpty(nbt)) {
+        if (status == PUT_INGREDIENT && !isEmpty(nbt, contraptionEntity.level())) {
             return false;
         }
 
@@ -518,8 +521,8 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
     /**
      * 检查汤锅是否为空
      */
-    private boolean isEmpty(CompoundTag nbt) {
-        NonNullList<ItemStack> inputs = readInputs(nbt);
+    private boolean isEmpty(CompoundTag nbt, Level level) {
+        NonNullList<ItemStack> inputs = readInputs(nbt, level);
         for (ItemStack stack : inputs) {
             if (!stack.isEmpty()) {
                 return false;
@@ -531,10 +534,10 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
     /**
      * 读取原料列表
      */
-    private NonNullList<ItemStack> readInputs(CompoundTag nbt) {
+    private NonNullList<ItemStack> readInputs(CompoundTag nbt, Level level) {
         NonNullList<ItemStack> inputs = NonNullList.withSize(StockpotRecipe.RECIPES_SIZE, ItemStack.EMPTY);
         if (nbt.contains(INPUTS, Tag.TAG_COMPOUND)) {
-            ContainerHelper.loadAllItems(nbt.getCompound(INPUTS), inputs);
+            ContainerHelper.loadAllItems(nbt.getCompound(INPUTS), inputs, level.registryAccess());
         }
         return inputs;
     }
@@ -542,8 +545,8 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
     /**
      * 保存原料列表
      */
-    private void saveInputs(CompoundTag nbt, NonNullList<ItemStack> inputs) {
-        nbt.put(INPUTS, ContainerHelper.saveAllItems(new CompoundTag(), inputs));
+    private void saveInputs(CompoundTag nbt, NonNullList<ItemStack> inputs, Level level) {
+        nbt.put(INPUTS, ContainerHelper.saveAllItems(new CompoundTag(), inputs, level.registryAccess()));
     }
 
     /**
@@ -552,7 +555,7 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
     private Ingredient readCarrier(CompoundTag nbt) {
         if (nbt.contains(CARRIER, Tag.TAG_STRING)) {
             JsonElement element = JsonParser.parseString(nbt.getString(CARRIER));
-            return Ingredient.fromJson(element);
+            return Ingredient.CODEC.parse(JsonOps.INSTANCE, element).result().orElse(Ingredient.of(Items.BOWL));
         }
         // 默认返回碗
         return Ingredient.of(Items.BOWL);
@@ -561,9 +564,9 @@ public class StockpotBlockInteraction extends MovingInteractionBehaviour {
     /**
      * 读取结果
      */
-    private ItemStack readResult(CompoundTag nbt) {
+    private ItemStack readResult(CompoundTag nbt, Level level) {
         if (nbt.contains(RESULT, Tag.TAG_COMPOUND)) {
-            return ItemStack.of(nbt.getCompound(RESULT));
+            return ItemStack.parseOptional(level.registryAccess(), nbt.getCompound(RESULT));
         }
         return ItemStack.EMPTY;
     }

@@ -6,9 +6,11 @@ import com.simibubi.create.content.contraptions.ContraptionHandler;
 import com.simibubi.create.content.contraptions.ContraptionHandlerClient;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -21,14 +23,12 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.client.gui.overlay.ForgeGui;
-import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 import java.lang.ref.WeakReference;
 import java.util.Collection;
 import java.util.Optional;
 
-public class ContraptionPotOverlay implements IGuiOverlay {
+public class ContraptionPotOverlay implements LayeredDraw.Layer {
 
     private static final int PUT_INGREDIENT = 0;
     private static final int COOKING = 1;
@@ -38,8 +38,11 @@ public class ContraptionPotOverlay implements IGuiOverlay {
     private static final String STATUS = "Status";
 
     @Override
-    public void render(ForgeGui gui, GuiGraphics guiGraphics, float partialTick, int screenWidth, int screenHeight) {
-        Minecraft minecraft = gui.getMinecraft();
+    public void render(GuiGraphics guiGraphics, DeltaTracker deltaTracker) {
+        Minecraft minecraft = Minecraft.getInstance();
+        float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
+        int screenWidth = guiGraphics.guiWidth();
+        int screenHeight = guiGraphics.guiHeight();
         if (minecraft.gameMode == null || minecraft.gameMode.getPlayerMode() == GameType.SPECTATOR) {
             return;
         }
@@ -52,7 +55,7 @@ public class ContraptionPotOverlay implements IGuiOverlay {
         // 计算玩家的视线
         Vec3 eyePosition = player.getEyePosition(partialTick);
         Vec3 lookVector = player.getViewVector(partialTick);
-        double reachDistance = minecraft.gameMode.getPickRange();
+        double reachDistance = player.blockInteractionRange();
         Vec3 endPosition = eyePosition.add(lookVector.x * reachDistance, lookVector.y * reachDistance, lookVector.z * reachDistance);
 
         // 查找玩家注视的Contraption中的PotBlock
@@ -82,11 +85,6 @@ public class ContraptionPotOverlay implements IGuiOverlay {
         Font font = Minecraft.getInstance().font;
         int x = screenWidth / 2;
         int y = screenHeight - 72;
-        // 检查是否有覆盖消息显示
-        if (minecraft.gui.overlayMessageTime > 0) {
-            y = y - 12;
-        }
-
         if (status == PUT_INGREDIENT) {
             drawWordWrap(guiGraphics, font, Component.translatable("tip.kaleidoscope_cookery.pot.add_ingredient"), x, y, 0xFFFFFF);
         } else if (status == COOKING) {

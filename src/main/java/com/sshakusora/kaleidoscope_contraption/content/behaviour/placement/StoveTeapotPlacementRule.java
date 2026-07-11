@@ -5,8 +5,9 @@ import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.TeapotBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.kitchen.TeapotBlockEntity;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.serializer.TeapotRecipeSerializer;
 import com.sshakusora.kaleidoscope_contraption.api.placement.*;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -28,7 +29,7 @@ public class StoveTeapotPlacementRule implements ContraptionPlacementRule {
                 .setValue(TeapotBlock.FACING, context.player().getDirection().getOpposite())
                 .setValue(TeapotBlock.WATERLOGGED, false)
                 .setValue(TeapotBlock.VARIANT, TeapotBlock.COMMON);
-        return single(context, state, createTeapotNbt(context.heldItem()));
+        return single(context, state, createTeapotNbt(context.heldItem(), context.contraptionEntity().level().registryAccess()));
     }
 
     @Override
@@ -37,9 +38,10 @@ public class StoveTeapotPlacementRule implements ContraptionPlacementRule {
         if (!(info.state().getBlock() instanceof TeapotBlock)) {
             return Optional.empty();
         }
-        CompoundTag nbt = info.nbt() == null ? createEmptyTeapotNbt() : info.nbt();
+        CompoundTag nbt = info.nbt() == null ? createEmptyTeapotNbt(context.contraptionEntity().level().registryAccess()) : info.nbt();
         TeapotBlockEntity blockEntity = new TeapotBlockEntity(info.pos(), info.state());
-        blockEntity.load(nbt);
+        blockEntity.setLevel(context.contraptionEntity().level());
+        blockEntity.loadWithComponents(nbt, context.contraptionEntity().level().registryAccess());
         return Optional.of(new ContraptionRemovalResult(
                 List.of(context.targetPos()), List.of(), blockEntity.getDrops(), true));
     }
@@ -50,9 +52,10 @@ public class StoveTeapotPlacementRule implements ContraptionPlacementRule {
                 context.targetPos(), state, nbt));
     }
 
-    private CompoundTag createTeapotNbt(ItemStack heldItem) {
-        CompoundTag nbt = createEmptyTeapotNbt();
-        CompoundTag handData = BlockItem.getBlockEntityData(heldItem);
+    private CompoundTag createTeapotNbt(ItemStack heldItem, HolderLookup.Provider registries) {
+        CompoundTag nbt = createEmptyTeapotNbt(registries);
+        var customData = heldItem.get(DataComponents.BLOCK_ENTITY_DATA);
+        CompoundTag handData = customData == null ? null : customData.copyTag();
         if (handData != null) {
             nbt.merge(handData.copy());
         }
@@ -60,11 +63,11 @@ public class StoveTeapotPlacementRule implements ContraptionPlacementRule {
         return nbt;
     }
 
-    private CompoundTag createEmptyTeapotNbt() {
+    private CompoundTag createEmptyTeapotNbt(HolderLookup.Provider registries) {
         CompoundTag nbt = new CompoundTag();
-        nbt.put("Input", ItemStack.EMPTY.serializeNBT());
+        nbt.put("Input", ItemStack.EMPTY.saveOptional(registries));
         nbt.putString("TeaFluidId", TeapotRecipeSerializer.EMPTY_TEA_FLUID.toString());
-        nbt.put("Result", ItemStack.EMPTY.serializeNBT());
+        nbt.put("Result", ItemStack.EMPTY.saveOptional(registries));
         nbt.putInt("Status", ITeapot.PUT_INGREDIENT);
         nbt.putInt("CurrentTick", -1);
         nbt.putString("id", "kaleidoscope_cookery:teapot");

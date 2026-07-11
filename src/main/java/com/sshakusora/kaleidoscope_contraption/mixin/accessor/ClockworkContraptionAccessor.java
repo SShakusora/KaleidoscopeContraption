@@ -5,7 +5,7 @@ import net.minecraft.core.Direction;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-@Mixin(ClockworkContraption.class)
+@Mixin(value = ClockworkContraption.class, remap = false)
 public interface ClockworkContraptionAccessor {
     @Accessor("facing")
     Direction getFacing();

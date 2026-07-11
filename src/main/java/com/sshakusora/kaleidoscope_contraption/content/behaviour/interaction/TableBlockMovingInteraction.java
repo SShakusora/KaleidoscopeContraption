@@ -20,7 +20,7 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.items.ItemStackHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class TableBlockMovingInteraction extends SyncedMovingInteractionBehaviour {
@@ -72,7 +72,7 @@ public class TableBlockMovingInteraction extends SyncedMovingInteractionBehaviou
         // 读取当前物品数据
         ItemStackHandler tableItems = new ItemStackHandler(4);
         if (nbt.contains(SHOW_ITEMS)) {
-            tableItems.deserializeNBT(nbt.getCompound(SHOW_ITEMS));
+            tableItems.deserializeNBT(contraptionEntity.level().registryAccess(), nbt.getCompound(SHOW_ITEMS));
         }
 
         Pair<Integer, ItemStack> lastStack = ItemUtils.getLastStack(tableItems);
@@ -90,7 +90,7 @@ public class TableBlockMovingInteraction extends SyncedMovingInteractionBehaviou
 
                 // 更新NBT
                 CompoundTag newNbt = nbt.copy();
-                newNbt.put(SHOW_ITEMS, tableItems.serializeNBT());
+                newNbt.put(SHOW_ITEMS, tableItems.serializeNBT(contraptionEntity.level().registryAccess()));
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), state, newNbt);
                 ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
@@ -115,7 +115,7 @@ public class TableBlockMovingInteraction extends SyncedMovingInteractionBehaviou
 
                 // 更新NBT
                 CompoundTag newNbt = nbt.copy();
-                newNbt.put(SHOW_ITEMS, tableItems.serializeNBT());
+                newNbt.put(SHOW_ITEMS, tableItems.serializeNBT(contraptionEntity.level().registryAccess()));
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), state, newNbt);
                 ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);

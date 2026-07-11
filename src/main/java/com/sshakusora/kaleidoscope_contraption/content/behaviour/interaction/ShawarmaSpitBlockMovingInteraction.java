@@ -12,10 +12,11 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.item.crafting.SingleRecipeInput;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -76,8 +77,8 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
     private boolean onPutCookingItem(Player player, AbstractContraptionEntity contraptionEntity, BlockPos localPos,
                                       BlockState state, CompoundTag nbt, ItemStack itemStack, StructureTemplate.StructureBlockInfo info) {
         // 检查是否已有物品在烹饪或已完成
-        ItemStack cookingItem = readCookingItem(nbt);
-        ItemStack cookedItem = readCookedItem(nbt);
+        ItemStack cookingItem = readCookingItem(nbt, contraptionEntity.level());
+        ItemStack cookedItem = readCookedItem(nbt, contraptionEntity.level());
         if (!cookingItem.isEmpty() || !cookedItem.isEmpty()) {
             return false;
         }
@@ -88,9 +89,9 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
         }
 
         // 尝试匹配营火配方
-        SimpleContainer container = new SimpleContainer(itemStack.copy());
+        SingleRecipeInput input = new SingleRecipeInput(itemStack.copy());
         var recipeOptional = contraptionEntity.level().getRecipeManager()
-                .getRecipeFor(RecipeType.CAMPFIRE_COOKING, container, contraptionEntity.level());
+                .getRecipeFor(RecipeType.CAMPFIRE_COOKING, input, contraptionEntity.level());
 
         return recipeOptional.map(recipe -> {
             if (contraptionEntity.level().isClientSide) {
@@ -100,14 +101,15 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
             // 设置烹饪物品和结果 - 一次最多放入MAX_ITEMS个
             int countToPut = Math.min(itemStack.getCount(), MAX_ITEMS);
             ItemStack cookingItemStack = itemStack.split(countToPut);
-            ItemStack resultItem = recipe.assemble(container, contraptionEntity.level().registryAccess());
+            var recipeValue = recipe.value();
+            ItemStack resultItem = recipeValue.assemble(input, contraptionEntity.level().registryAccess());
             resultItem.setCount(cookingItemStack.getCount());
 
             // 更新NBT
             CompoundTag newNbt = nbt.copy();
-            newNbt.put(COOKING_ITEM, cookingItemStack.save(new CompoundTag()));
-            newNbt.put(COOKED_ITEM, resultItem.save(new CompoundTag()));
-            newNbt.putInt(COOK_TIME, recipe.getCookingTime());
+            newNbt.put(COOKING_ITEM, cookingItemStack.save(contraptionEntity.level().registryAccess(), new CompoundTag()));
+            newNbt.put(COOKED_ITEM, resultItem.save(contraptionEntity.level().registryAccess(), new CompoundTag()));
+            newNbt.putInt(COOK_TIME, recipeValue.getCookingTime());
 
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                     info.pos(), state, newNbt);
@@ -134,8 +136,8 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
     private boolean onTakeCookedItem(Player player, AbstractContraptionEntity contraptionEntity, BlockPos localPos,
                                       BlockState state, CompoundTag nbt, ItemStack mainHandItem, StructureTemplate.StructureBlockInfo info) {
         int cookTime = nbt.getInt(COOK_TIME);
-        ItemStack cookingItem = readCookingItem(nbt);
-        ItemStack cookedItem = readCookedItem(nbt);
+        ItemStack cookingItem = readCookingItem(nbt, contraptionEntity.level());
+        ItemStack cookedItem = readCookedItem(nbt, contraptionEntity.level());
 
         // 如果有烹饪完成的物品（cookTime <= 0 且 cookedItem 不为空）
         if (cookTime <= 0 && !cookedItem.isEmpty()) {
@@ -175,8 +177,8 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
 
         // 重置NBT
         CompoundTag newNbt = nbt.copy();
-        newNbt.put(COOKING_ITEM, ItemStack.EMPTY.save(new CompoundTag()));
-        newNbt.put(COOKED_ITEM, ItemStack.EMPTY.save(new CompoundTag()));
+        newNbt.put(COOKING_ITEM, ItemStack.EMPTY.saveOptional(contraptionEntity.level().registryAccess()));
+        newNbt.put(COOKED_ITEM, ItemStack.EMPTY.saveOptional(contraptionEntity.level().registryAccess()));
         newNbt.putInt(COOK_TIME, 0);
 
         StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
@@ -207,8 +209,8 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
         // 检查是否正在烹饪或有成品
         CompoundTag nbt = blockInfo.nbt();
         if (nbt != null) {
-            ItemStack cookingItem = readCookingItem(nbt);
-            ItemStack cookedItem = readCookedItem(nbt);
+            ItemStack cookingItem = readCookingItem(nbt, contraptionEntity.level());
+            ItemStack cookedItem = readCookedItem(nbt, contraptionEntity.level());
             if (!cookingItem.isEmpty() || !cookedItem.isEmpty()) {
                 // 有物品时不能移除
                 return false;
@@ -262,8 +264,8 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
         }
 
         CompoundTag nbt = info.nbt();
-        ItemStack cookingItem = readCookingItem(nbt);
-        ItemStack cookedItem = readCookedItem(nbt);
+        ItemStack cookingItem = readCookingItem(nbt, contraptionEntity.level());
+        ItemStack cookedItem = readCookedItem(nbt, contraptionEntity.level());
 
         Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
         BlockPos dropPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
@@ -278,9 +280,9 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
     /**
      * 读取正在烹饪的物品
      */
-    private ItemStack readCookingItem(CompoundTag nbt) {
+    private ItemStack readCookingItem(CompoundTag nbt, Level level) {
         if (nbt.contains(COOKING_ITEM)) {
-            return ItemStack.of(nbt.getCompound(COOKING_ITEM));
+            return ItemStack.parseOptional(level.registryAccess(), nbt.getCompound(COOKING_ITEM));
         }
         return ItemStack.EMPTY;
     }
@@ -288,9 +290,9 @@ public class ShawarmaSpitBlockMovingInteraction extends MovingInteractionBehavio
     /**
      * 读取烹饪完成的物品
      */
-    private ItemStack readCookedItem(CompoundTag nbt) {
+    private ItemStack readCookedItem(CompoundTag nbt, Level level) {
         if (nbt.contains(COOKED_ITEM)) {
-            return ItemStack.of(nbt.getCompound(COOKED_ITEM));
+            return ItemStack.parseOptional(level.registryAccess(), nbt.getCompound(COOKED_ITEM));
         }
         return ItemStack.EMPTY;
     }

@@ -14,6 +14,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -182,8 +183,8 @@ public class ShawarmaSpitBlockMovementBehaviour implements MovementBehaviour {
      * 执行ShawarmaSpit的tick逻辑（参考ShawarmaSpitBlockEntity.tick()）
      */
     private void tickShawarmaSpit(MovementContext context, BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
-        ItemStack cookingItem = readCookingItem(nbt);
-        ItemStack cookedItem = readCookedItem(nbt);
+        ItemStack cookingItem = readCookingItem(nbt, context.world);
+        ItemStack cookedItem = readCookedItem(nbt, context.world);
         int cookTime = nbt.getInt(COOK_TIME);
         RandomSource random = context.world.random;
 
@@ -211,7 +212,7 @@ public class ShawarmaSpitBlockMovementBehaviour implements MovementBehaviour {
 
             // 清空cookingItem
             CompoundTag newNbt = nbt.copy();
-            newNbt.put(COOKING_ITEM, ItemStack.EMPTY.save(new CompoundTag()));
+            newNbt.put(COOKING_ITEM, ItemStack.EMPTY.saveOptional(context.world.registryAccess()));
             ContraptionDataUtil.updateContraptionData(context, state, newNbt, true);
         }
     }
@@ -280,9 +281,9 @@ public class ShawarmaSpitBlockMovementBehaviour implements MovementBehaviour {
     /**
      * 读取正在烹饪的物品
      */
-    private ItemStack readCookingItem(CompoundTag nbt) {
+    private ItemStack readCookingItem(CompoundTag nbt, Level level) {
         if (nbt.contains(COOKING_ITEM)) {
-            return ItemStack.of(nbt.getCompound(COOKING_ITEM));
+            return ItemStack.parseOptional(level.registryAccess(), nbt.getCompound(COOKING_ITEM));
         }
         return ItemStack.EMPTY;
     }
@@ -290,9 +291,9 @@ public class ShawarmaSpitBlockMovementBehaviour implements MovementBehaviour {
     /**
      * 读取烹饪完成的物品
      */
-    private ItemStack readCookedItem(CompoundTag nbt) {
+    private ItemStack readCookedItem(CompoundTag nbt, Level level) {
         if (nbt.contains(COOKED_ITEM)) {
-            return ItemStack.of(nbt.getCompound(COOKED_ITEM));
+            return ItemStack.parseOptional(level.registryAccess(), nbt.getCompound(COOKED_ITEM));
         }
         return ItemStack.EMPTY;
     }

@@ -6,6 +6,10 @@ import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionRemovalM
 import com.sshakusora.kaleidoscope_contraption.util.DevEnvUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
@@ -13,16 +17,18 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.slf4j.Logger;
 
-import java.util.function.Supplier;
 
 /**
  * 客户端发送到服务端的移除方块请求包
  * 当玩家按下移除方块键时发送，服务端验证并执行移除逻辑
  */
-public class KCRemoveBlockPacket {
+public class KCRemoveBlockPacket implements CustomPacketPayload {
+    public static final Type<KCRemoveBlockPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("kaleidoscope_contraption", "remove_block"));
+    public static final StreamCodec<RegistryFriendlyByteBuf, KCRemoveBlockPacket> STREAM_CODEC =
+            StreamCodec.of((buffer, packet) -> encode(packet, buffer), KCRemoveBlockPacket::decode);
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final double MAX_REMOVE_DISTANCE_SQR = 36.0;
@@ -44,10 +50,9 @@ public class KCRemoveBlockPacket {
         return new KCRemoveBlockPacket(buffer.readInt(), buffer.readBlockPos());
     }
 
-    public static void handle(KCRemoveBlockPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
+    public static void handle(KCRemoveBlockPacket packet, IPayloadContext context) {
         context.enqueueWork(() -> {
-            ServerPlayer player = context.getSender();
+            ServerPlayer player = (ServerPlayer) context.player();
             if (player == null) {
                 LOGGER.warn("[KCRemoveBlockPacket] Player is null");
                 return;
@@ -95,8 +100,10 @@ public class KCRemoveBlockPacket {
             // 旧存档中的方块没有规则ID，回退到原有Interaction移除逻辑
             triggerRemoveInteraction(player, contraptionEntity, packet.targetPos);
         });
-        context.setPacketHandled(true);
     }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
     private static boolean isTargetedBlock(ServerPlayer player, AbstractContraptionEntity entity,
                                            BlockPos requestedPos) {

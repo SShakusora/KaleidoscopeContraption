@@ -2,6 +2,7 @@ package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.advancements.critereon.ModEventTriggerType;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock;
+import com.github.ysbbbbbb.kaleidoscopecookery.crafting.container.SimpleInput;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.PotRecipe;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModBlocks;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModItems;
@@ -17,6 +18,7 @@ import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.QualityUtils;
 import com.github.ysbbbbbb.kaleidoscopecookery.util.ItemUtils;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import com.mojang.serialization.JsonOps;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionRemovalManager;
@@ -35,12 +37,13 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.Vec3;
@@ -128,7 +131,8 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
         // 如果拿着锅铲，那么开始执行锅铲逻辑
         if (itemInHand.is(TagMod.KITCHEN_SHOVEL)) {
             if (contraptionEntity.level().random.nextDouble() < DURABILITY_COST_PROBABILITY) {
-                itemInHand.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(player.getUsedItemHand()));
+                itemInHand.hurtAndBreak(1, player,
+                        activeHand == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
             }
             onShovelHit(player, contraptionEntity, localPos, state, nbt, info);
             Vec3 globalPos = contraptionEntity.toGlobalVector(Vec3.atCenterOf(localPos), 1.0f);
@@ -157,19 +161,19 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
             if (!player.isCreative()) {
                 stack.shrink(1);
             }
-            ModTrigger.EVENT.trigger(player, ModEventTriggerType.PUT_OIL_IN_POT);
+            ModTrigger.EVENT.get().trigger(player, ModEventTriggerType.PUT_OIL_IN_POT);
             return true;
         } else if (stack.is(ModItems.KITCHEN_SHOVEL.get()) && KitchenShovelItem.hasOil(stack)) {
             // 带油锅铲特判
             placeOil(contraptionEntity, localPos, state, nbt, player, info);
             KitchenShovelItem.setHasOil(stack, false);
-            ModTrigger.EVENT.trigger(player, ModEventTriggerType.PUT_OIL_IN_POT);
+            ModTrigger.EVENT.get().trigger(player, ModEventTriggerType.PUT_OIL_IN_POT);
             return true;
         } else if (stack.is(ModItems.OIL_POT.get()) && OilPotItem.hasOil(stack)) {
             // 油壶特判
             placeOil(contraptionEntity, localPos, state, nbt, player, info);
             OilPotItem.shrinkOilCount(stack);
-            ModTrigger.EVENT.trigger(player, ModEventTriggerType.PUT_OIL_IN_POT);
+            ModTrigger.EVENT.get().trigger(player, ModEventTriggerType.PUT_OIL_IN_POT);
             return true;
         }
         return false;
@@ -216,7 +220,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
         }
 
         // 读取当前原料
-        NonNullList<ItemStack> inputs = readInputs(nbt);
+        NonNullList<ItemStack> inputs = readInputs(nbt, contraptionEntity.level());
 
         for (int i = 0; i < inputs.size(); i++) {
             ItemStack item = inputs.get(i);
@@ -231,7 +235,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
                 // 更新NBT
                 if (!contraptionEntity.level().isClientSide) {
                     CompoundTag newNbt = nbt.copy();
-                    saveInputs(newNbt, inputs);
+                    saveInputs(newNbt, inputs, contraptionEntity.level());
                     StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                             info.pos(), state, newNbt);
                     ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
@@ -258,7 +262,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
         }
 
         // 读取当前原料
-        NonNullList<ItemStack> inputs = readInputs(nbt);
+        NonNullList<ItemStack> inputs = readInputs(nbt, contraptionEntity.level());
 
         for (int i = inputs.size() - 1; i >= 0; i--) {
             ItemStack stack = inputs.get(i);
@@ -277,7 +281,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
 
                 // 更新NBT
                 CompoundTag newNbt = nbt.copy();
-                saveInputs(newNbt, inputs);
+                saveInputs(newNbt, inputs, contraptionEntity.level());
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), state, newNbt);
                 ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
@@ -285,7 +289,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
 
             if (ContraptionInteractionUtil.hasHeatSource(contraptionEntity, localPos)) {
                 player.hurt(contraptionEntity.level().damageSources().inFire(), 1);
-                ModTrigger.EVENT.trigger(player, ModEventTriggerType.HURT_WHEN_TAKEOUT_FROM_POT);
+                ModTrigger.EVENT.get().trigger(player, ModEventTriggerType.HURT_WHEN_TAKEOUT_FROM_POT);
             }
 
             return true;
@@ -324,9 +328,9 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
 
             // 起锅烧油，放入食材阶段
             if (status == PUT_INGREDIENT) {
-                if (!isEmpty(newNbt)) {
+                if (!isEmpty(newNbt, contraptionEntity.level())) {
                     startCooking(contraptionEntity, localPos, state, newNbt, info);
-                    ModTrigger.EVENT.trigger(user, ModEventTriggerType.STIR_FRY_IN_POT);
+                    ModTrigger.EVENT.get().trigger(user, ModEventTriggerType.STIR_FRY_IN_POT);
                 }
             }
 
@@ -338,7 +342,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
                 }
                 ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, new StructureTemplate.StructureBlockInfo(
                         info.pos(), state, newNbt));
-                ModTrigger.EVENT.trigger(user, ModEventTriggerType.STIR_FRY_IN_POT);
+                ModTrigger.EVENT.get().trigger(user, ModEventTriggerType.STIR_FRY_IN_POT);
             }
         }
     }
@@ -347,32 +351,35 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
      * 开始炒菜
      */
     private void startCooking(AbstractContraptionEntity contraptionEntity, BlockPos localPos, BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
-        NonNullList<ItemStack> inputs = readInputs(nbt);
-        SimpleContainer container = getContainer(inputs);
+        NonNullList<ItemStack> inputs = readInputs(nbt, contraptionEntity.level());
+        SimpleInput input = new SimpleInput(inputs);
 
         CompoundTag newNbt = nbt.copy();
         newNbt.putInt(STATUS, COOKING);
 
         var manager = contraptionEntity.level().getRecipeManager();
-        var recipe = manager.getRecipeFor(ModRecipes.POT_RECIPE, container, contraptionEntity.level());
+        var recipe = manager.getRecipeFor(ModRecipes.POT_RECIPE, input, contraptionEntity.level());
         if (recipe.isPresent()) {
-            applyRecipe(newNbt, recipe.get().carrier(),
-                    recipe.get().assemble(container, contraptionEntity.level().registryAccess()),
-                    recipe.get().time(), recipe.get().stirFryCount());
+            var value = recipe.get().value();
+            applyRecipe(newNbt, value.carrier(),
+                    value.assemble(input, contraptionEntity.level().registryAccess()),
+                    value.time(), value.stirFryCount(), contraptionEntity.level());
         } else {
-            var flexRecipe = manager.getRecipeFor(ModRecipes.FLEX_POT_RECIPE, container, contraptionEntity.level());
+            var flexRecipe = manager.getRecipeFor(ModRecipes.FLEX_POT_RECIPE, input, contraptionEntity.level());
             if (flexRecipe.isPresent()) {
-                ItemStack result = flexRecipe.get().assemble(container, contraptionEntity.level().registryAccess());
+                var value = flexRecipe.get().value();
+                ItemStack result = value.assemble(input, contraptionEntity.level().registryAccess());
                 if (contraptionEntity.level() instanceof ServerLevel serverLevel) {
                     Quality quality = QualityEvaluator.evaluate(
-                            inputs, flexRecipe.get().ingredients(), flexRecipe.get().getId(), serverLevel.getSeed());
+                            inputs, value.ingredients(), flexRecipe.get().id(), serverLevel.getSeed());
                     QualityUtils.setQuality(result, quality);
                 }
-                applyRecipe(newNbt, flexRecipe.get().carrier(), result,
-                        flexRecipe.get().time(), flexRecipe.get().stirFryCount());
+                applyRecipe(newNbt, value.carrier(), result,
+                        value.time(), value.stirFryCount(), contraptionEntity.level());
             } else {
                 applyRecipe(newNbt, Ingredient.of(Items.BOWL),
-                        new ItemStack(FoodBiteRegistry.getItem(SUSPICIOUS_STIR_FRY)), 10 * 20, 0);
+                        new ItemStack(FoodBiteRegistry.getItem(SUSPICIOUS_STIR_FRY)), 10 * 20, 0,
+                        contraptionEntity.level());
             }
         }
 
@@ -381,9 +388,9 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
         ContraptionInteractionUtil.updateContraptionData(contraptionEntity, localPos, newInfo);
     }
 
-    private void applyRecipe(CompoundTag nbt, Ingredient carrier, ItemStack result, int time, int stirFryCount) {
-        nbt.putString(CARRIER, carrier.toJson().toString());
-        nbt.put(RESULT, result.serializeNBT());
+    private void applyRecipe(CompoundTag nbt, Ingredient carrier, ItemStack result, int time, int stirFryCount, Level level) {
+        nbt.putString(CARRIER, Ingredient.CODEC.encodeStart(JsonOps.INSTANCE, carrier).getOrThrow().toString());
+        nbt.put(RESULT, result.save(level.registryAccess(), new CompoundTag()));
         nbt.putInt(CURRENT_TICK, time);
         nbt.putInt(STIR_FRY_COUNT, stirFryCount);
     }
@@ -401,7 +408,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
         }
 
         // 烧焦时取出的是黑暗料理
-        ItemStack finallyResult = status == FINISHED ? readResult(nbt) : new ItemStack(FoodBiteRegistry.getItem(DARK_CUISINE));
+        ItemStack finallyResult = status == FINISHED ? readResult(nbt, contraptionEntity.level()) : new ItemStack(FoodBiteRegistry.getItem(DARK_CUISINE));
 
         Ingredient carrier = readCarrier(nbt);
         if (!carrier.isEmpty()) {
@@ -426,7 +433,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
         } else {
             if (ContraptionInteractionUtil.hasHeatSource(contraptionEntity, localPos)) {
                 player.hurt(contraptionEntity.level().damageSources().inFire(), 1);
-                ModTrigger.EVENT.trigger(player, ModEventTriggerType.HURT_WHEN_TAKEOUT_FROM_POT);
+                ModTrigger.EVENT.get().trigger(player, ModEventTriggerType.HURT_WHEN_TAKEOUT_FROM_POT);
             }
             sendActionBarMessage(player, "need_kitchen_shovel");
             // 选择返回true，以便触发C2S，伤害得以生效
@@ -455,7 +462,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
         if (!mainHandItem.is(TagMod.KITCHEN_SHOVEL)) {
             if (ContraptionInteractionUtil.hasHeatSource(contraptionEntity, localPos)) {
                 player.hurt(contraptionEntity.level().damageSources().inFire(), 1);
-                ModTrigger.EVENT.trigger(player, ModEventTriggerType.HURT_WHEN_TAKEOUT_FROM_POT);
+                ModTrigger.EVENT.get().trigger(player, ModEventTriggerType.HURT_WHEN_TAKEOUT_FROM_POT);
             }
             sendActionBarMessage(player, "need_carrier", carrierName);
             // 选择返回true，以便触发C2S，伤害得以生效
@@ -469,9 +476,9 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
      */
     private void reset(AbstractContraptionEntity contraptionEntity, BlockPos localPos, BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
         CompoundTag newNbt = new CompoundTag();
-        newNbt.put(INPUTS, ContainerHelper.saveAllItems(new CompoundTag(), NonNullList.withSize(PotRecipe.RECIPES_SIZE, ItemStack.EMPTY)));
-        newNbt.putString(CARRIER, Ingredient.EMPTY.toJson().toString());
-        newNbt.put(RESULT, ItemStack.EMPTY.serializeNBT());
+        newNbt.put(INPUTS, ContainerHelper.saveAllItems(new CompoundTag(), NonNullList.withSize(PotRecipe.RECIPES_SIZE, ItemStack.EMPTY), contraptionEntity.level().registryAccess()));
+        newNbt.putString(CARRIER, Ingredient.CODEC.encodeStart(JsonOps.INSTANCE, Ingredient.EMPTY).getOrThrow().toString());
+        newNbt.put(RESULT, ItemStack.EMPTY.saveOptional(contraptionEntity.level().registryAccess()));
         newNbt.putInt(STATUS, PUT_INGREDIENT);
         newNbt.putInt(CURRENT_TICK, 0);
         newNbt.putInt(STIR_FRY_COUNT, 0);
@@ -519,8 +526,8 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
     /**
      * 检查锅是否为空
      */
-    private boolean isEmpty(CompoundTag nbt) {
-        NonNullList<ItemStack> inputs = readInputs(nbt);
+    private boolean isEmpty(CompoundTag nbt, Level level) {
+        NonNullList<ItemStack> inputs = readInputs(nbt, level);
         for (ItemStack stack : inputs) {
             if (!stack.isEmpty()) {
                 return false;
@@ -532,10 +539,10 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
     /**
      * 读取原料列表
      */
-    private NonNullList<ItemStack> readInputs(CompoundTag nbt) {
+    private NonNullList<ItemStack> readInputs(CompoundTag nbt, Level level) {
         NonNullList<ItemStack> inputs = NonNullList.withSize(PotRecipe.RECIPES_SIZE, ItemStack.EMPTY);
         if (nbt.contains(INPUTS, Tag.TAG_COMPOUND)) {
-            ContainerHelper.loadAllItems(nbt.getCompound(INPUTS), inputs);
+            ContainerHelper.loadAllItems(nbt.getCompound(INPUTS), inputs, level.registryAccess());
         }
         return inputs;
     }
@@ -543,8 +550,8 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
     /**
      * 保存原料列表
      */
-    private void saveInputs(CompoundTag nbt, NonNullList<ItemStack> inputs) {
-        nbt.put(INPUTS, ContainerHelper.saveAllItems(new CompoundTag(), inputs));
+    private void saveInputs(CompoundTag nbt, NonNullList<ItemStack> inputs, Level level) {
+        nbt.put(INPUTS, ContainerHelper.saveAllItems(new CompoundTag(), inputs, level.registryAccess()));
     }
 
     /**
@@ -553,7 +560,7 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
     private Ingredient readCarrier(CompoundTag nbt) {
         if (nbt.contains(CARRIER, Tag.TAG_STRING)) {
             JsonElement element = JsonParser.parseString(nbt.getString(CARRIER));
-            return Ingredient.fromJson(element);
+            return Ingredient.CODEC.parse(JsonOps.INSTANCE, element).result().orElse(Ingredient.EMPTY);
         }
         return Ingredient.EMPTY;
     }
@@ -561,9 +568,9 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
     /**
      * 读取结果
      */
-    private ItemStack readResult(CompoundTag nbt) {
+    private ItemStack readResult(CompoundTag nbt, Level level) {
         if (nbt.contains(RESULT, Tag.TAG_COMPOUND)) {
-            return ItemStack.of(nbt.getCompound(RESULT));
+            return ItemStack.parseOptional(level.registryAccess(), nbt.getCompound(RESULT));
         }
         return ItemStack.EMPTY;
     }
@@ -571,17 +578,6 @@ public class PotBlockMovingInteraction extends MovingInteractionBehaviour {
     /**
      * 获取容器
      */
-    private SimpleContainer getContainer(NonNullList<ItemStack> inputs) {
-        SimpleContainer container = new SimpleContainer(PotRecipe.RECIPES_SIZE);
-        for (int i = 0; i < inputs.size(); i++) {
-            ItemStack stack = inputs.get(i);
-            if (!stack.isEmpty()) {
-                container.setItem(i, stack);
-            }
-        }
-        return container;
-    }
-
     /**
      * 发送ActionBar消息
      */

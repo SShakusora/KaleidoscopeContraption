@@ -1,6 +1,6 @@
 package com.sshakusora.kaleidoscope_contraption.util;
 
-import net.minecraftforge.fml.loading.FMLLoader;
+import net.neoforged.fml.loading.FMLLoader;
 
 /**
  * 开发环境检测工具类

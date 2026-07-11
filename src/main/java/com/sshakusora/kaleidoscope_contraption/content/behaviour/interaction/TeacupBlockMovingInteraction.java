@@ -57,7 +57,7 @@ public class TeacupBlockMovingInteraction extends MovingInteractionBehaviour {
         ItemStack held = player.getMainHandItem();
 
         if (held.is(ModItems.TEAPOT.get())) {
-            ItemStack poured = TeapotItem.getPourOut(held);
+            ItemStack poured = TeapotItem.getPourOut(held, entity.level());
             if (!(poured.getItem() instanceof TeacupItem item)
                     || !(item.getBlock() instanceof TeacupBlock teacup)) {
                 return true;
@@ -73,7 +73,7 @@ public class TeacupBlockMovingInteraction extends MovingInteractionBehaviour {
                         .setValue(teacup.getTeaCountProperty(), 1)
                         .setValue(TeacupBlock.FACING, state.getValue(EmptyCupBlock.FACING));
                 update(entity, pos, info, newState);
-                TeapotItem.pourOut(held);
+                TeapotItem.pourOut(held, entity.level());
                 play(entity, pos, SoundEvents.BREWING_STAND_BREW);
                 spawnPourParticles(entity, pos);
             }
@@ -117,13 +117,13 @@ public class TeacupBlockMovingInteraction extends MovingInteractionBehaviour {
         int tea = state.getValue(teacup.getTeaCountProperty());
 
         if (held.is(ModItems.TEAPOT.get())) {
-            ItemStack poured = TeapotItem.getPourOut(held);
+            ItemStack poured = TeapotItem.getPourOut(held, entity.level());
             if (poured.isEmpty() || poured.getItem() != state.getBlock().asItem()) {
                 return true;
             }
             if (tea < cups && !entity.level().isClientSide) {
                 update(entity, pos, info, state.setValue(teacup.getTeaCountProperty(), tea + 1));
-                TeapotItem.pourOut(held);
+                TeapotItem.pourOut(held, entity.level());
                 play(entity, pos, SoundEvents.BREWING_STAND_BREW);
                 spawnPourParticles(entity, pos);
             }

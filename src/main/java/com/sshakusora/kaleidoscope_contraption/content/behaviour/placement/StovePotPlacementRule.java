@@ -5,6 +5,7 @@ import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.PotBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.PotRecipe;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModBlocks;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModTrigger;
+import com.mojang.serialization.JsonOps;
 import com.sshakusora.kaleidoscope_contraption.api.placement.*;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
@@ -34,9 +35,9 @@ public class StovePotPlacementRule implements ContraptionPlacementRule {
 
         CompoundTag nbt = new CompoundTag();
         nbt.put("Inputs", ContainerHelper.saveAllItems(new CompoundTag(),
-                NonNullList.withSize(PotRecipe.RECIPES_SIZE, ItemStack.EMPTY)));
-        nbt.putString("Carrier", Ingredient.EMPTY.toJson().toString());
-        nbt.put("Result", ItemStack.EMPTY.serializeNBT());
+                NonNullList.withSize(PotRecipe.RECIPES_SIZE, ItemStack.EMPTY), context.contraptionEntity().level().registryAccess()));
+        nbt.putString("Carrier", Ingredient.CODEC.encodeStart(JsonOps.INSTANCE, Ingredient.EMPTY).getOrThrow().toString());
+        nbt.put("Result", ItemStack.EMPTY.saveOptional(context.contraptionEntity().level().registryAccess()));
         nbt.putInt("Status", 0);
         nbt.putInt("CurrentTick", 0);
         nbt.putInt("StirFryCount", 0);
@@ -48,7 +49,7 @@ public class StovePotPlacementRule implements ContraptionPlacementRule {
     @Override
     public void afterPlaced(ContraptionPlacementContext context, ContraptionPlacementResult result) {
         if (isLit(context)) {
-            ModTrigger.EVENT.trigger(context.player(), ModEventTriggerType.PLACE_POT_ON_HEAT_SOURCE);
+            ModTrigger.EVENT.get().trigger(context.player(), ModEventTriggerType.PLACE_POT_ON_HEAT_SOURCE);
         }
     }
 
@@ -59,8 +60,8 @@ public class StovePotPlacementRule implements ContraptionPlacementRule {
         if (!(state.getBlock() instanceof PotBlock)
                 || state.getValue(PotBlock.HAS_OIL)
                 || (nbt != null && nbt.getInt("Status") != 0)
-                || !isContainerEmpty(nbt)
-                || (nbt != null && !ItemStack.of(nbt.getCompound("Result")).isEmpty())) {
+                || !isContainerEmpty(nbt, context)
+                || (nbt != null && !ItemStack.parseOptional(context.contraptionEntity().level().registryAccess(), nbt.getCompound("Result")).isEmpty())) {
             return Optional.empty();
         }
         return Optional.of(ContraptionRemovalResult.single(
@@ -78,12 +79,12 @@ public class StovePotPlacementRule implements ContraptionPlacementRule {
         return state.hasProperty(BlockStateProperties.LIT) && state.getValue(BlockStateProperties.LIT);
     }
 
-    private boolean isContainerEmpty(CompoundTag nbt) {
+    private boolean isContainerEmpty(CompoundTag nbt, ContraptionRemovalContext context) {
         if (nbt == null || !nbt.contains("Inputs", Tag.TAG_COMPOUND)) {
             return true;
         }
         NonNullList<ItemStack> items = NonNullList.withSize(PotRecipe.RECIPES_SIZE, ItemStack.EMPTY);
-        ContainerHelper.loadAllItems(nbt.getCompound("Inputs"), items);
+        ContainerHelper.loadAllItems(nbt.getCompound("Inputs"), items, context.contraptionEntity().level().registryAccess());
         return items.stream().allMatch(ItemStack::isEmpty);
     }
 }

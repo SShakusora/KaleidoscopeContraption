@@ -13,10 +13,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.InputEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.InputEvent;
 
 import java.lang.ref.WeakReference;
 import java.util.Collection;
@@ -25,7 +25,7 @@ import java.util.Collection;
  * 客户端按键输入处理器
  * 当玩家按下移除方块键时，检测是否指向Contraption中的方块，如果是则发送网络包到服务端
  */
-@Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT, modid = KaleidoscopeContraption.MOD_ID)
+@EventBusSubscriber(value = Dist.CLIENT, modid = KaleidoscopeContraption.MOD_ID)
 public class KeyInputHandler {
 
     @SubscribeEvent
@@ -52,7 +52,7 @@ public class KeyInputHandler {
         }
 
         // 发送网络包到服务端，包含contraptionId和目标方块位置
-        KCPacketHandler.INSTANCE.sendToServer(new KCRemoveBlockPacket(target.contraptionId(), target.targetPos()));
+        KCPacketHandler.sendToServer(new KCRemoveBlockPacket(target.contraptionId(), target.targetPos()));
     }
 
     /**

@@ -9,6 +9,7 @@ import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.sounds.SoundEvent;
@@ -20,8 +21,8 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.minecraftforge.items.ItemHandlerHelper;
-import net.minecraftforge.items.ItemStackHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 public class FruitBasketBlockMovingInteraction extends MovingInteractionBehaviour {
 
@@ -76,7 +77,7 @@ public class FruitBasketBlockMovingInteraction extends MovingInteractionBehaviou
         }
 
         // 读取当前物品
-        ItemStackHandler items = readItems(nbt);
+        ItemStackHandler items = readItems(nbt, contraptionEntity.level().registryAccess());
 
         // 尝试插入物品
         ItemStack reminder = ItemHandlerHelper.insertItemStacked(items, stack.copy(), false);
@@ -92,7 +93,7 @@ public class FruitBasketBlockMovingInteraction extends MovingInteractionBehaviou
 
             // 更新NBT
             CompoundTag newNbt = nbt.copy();
-            saveItems(newNbt, items);
+            saveItems(newNbt, items, contraptionEntity.level().registryAccess());
 
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                     info.pos(), state, newNbt);
@@ -111,7 +112,7 @@ public class FruitBasketBlockMovingInteraction extends MovingInteractionBehaviou
     private boolean takeOutItem(Player player, AbstractContraptionEntity contraptionEntity, BlockPos localPos,
                                  BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
         // 读取当前物品
-        ItemStackHandler items = readItems(nbt);
+        ItemStackHandler items = readItems(nbt, contraptionEntity.level().registryAccess());
 
         // 找到第一个非空槽位并取出
         for (int i = 0; i < items.getSlots(); i++) {
@@ -126,7 +127,7 @@ public class FruitBasketBlockMovingInteraction extends MovingInteractionBehaviou
 
                     // 更新NBT
                     CompoundTag newNbt = nbt.copy();
-                    saveItems(newNbt, items);
+                    saveItems(newNbt, items, contraptionEntity.level().registryAccess());
 
                     StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                             info.pos(), state, newNbt);
@@ -188,10 +189,10 @@ public class FruitBasketBlockMovingInteraction extends MovingInteractionBehaviou
     /**
      * 读取物品列表
      */
-    private ItemStackHandler readItems(CompoundTag nbt) {
+    private ItemStackHandler readItems(CompoundTag nbt, HolderLookup.Provider registries) {
         ItemStackHandler items = new ItemStackHandler(MAX_SLOTS);
         if (nbt != null && nbt.contains(ITEMS_TAG, Tag.TAG_COMPOUND)) {
-            items.deserializeNBT(nbt.getCompound(ITEMS_TAG));
+            items.deserializeNBT(registries, nbt.getCompound(ITEMS_TAG));
         }
         return items;
     }
@@ -199,8 +200,8 @@ public class FruitBasketBlockMovingInteraction extends MovingInteractionBehaviou
     /**
      * 保存物品列表
      */
-    private void saveItems(CompoundTag nbt, ItemStackHandler items) {
-        nbt.put(ITEMS_TAG, items.serializeNBT());
+    private void saveItems(CompoundTag nbt, ItemStackHandler items, HolderLookup.Provider registries) {
+        nbt.put(ITEMS_TAG, items.serializeNBT(registries));
     }
 
     /**

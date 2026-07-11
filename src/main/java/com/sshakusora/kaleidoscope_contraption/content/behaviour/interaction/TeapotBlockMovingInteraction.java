@@ -10,8 +10,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.items.ItemHandlerHelper;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
 
 public class TeapotBlockMovingInteraction extends BlockEntityDelegatingMovingInteraction {
     @Override
@@ -25,7 +25,7 @@ public class TeapotBlockMovingInteraction extends BlockEntityDelegatingMovingInt
         TeapotBlockEntity blockEntity = loadBlockEntity(
                 new TeapotBlockEntity(localPos, info.state()), info.nbt(), contraptionEntity);
         boolean changed;
-        if (held.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).isPresent()) {
+        if (held.getCapability(Capabilities.FluidHandler.ITEM) != null) {
             changed = FluidUtils.hasFluid(held)
                     ? blockEntity.addTeaFluid(contraptionEntity.level(), player, held)
                     : blockEntity.removeTeaFluid(contraptionEntity.level(), player, held);

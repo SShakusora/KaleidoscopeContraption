@@ -9,10 +9,12 @@ import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.sshakusora.kaleidoscope_contraption.api.placement.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -38,9 +40,9 @@ public class StoveSteamerPlacementRule implements ContraptionPlacementRule {
                 .setValue(SteamerBlock.WATERLOGGED, false);
         if (context.supportInfo().state().hasProperty(BlockStateProperties.LIT)
                 && context.supportInfo().state().getValue(BlockStateProperties.LIT)) {
-            ModTrigger.EVENT.trigger(context.player(), ModEventTriggerType.USE_STEAMER);
+            ModTrigger.EVENT.get().trigger(context.player(), ModEventTriggerType.USE_STEAMER);
         }
-        return single(context, state, createSteamerNbt(context.heldItem()));
+        return single(context, state, createSteamerNbt(context.heldItem(), context.contraptionEntity().level()));
     }
 
     @Override
@@ -50,12 +52,12 @@ public class StoveSteamerPlacementRule implements ContraptionPlacementRule {
                 || isSteamer(context.contraptionEntity(), context.targetPos().above())) {
             return Optional.empty();
         }
-        ItemStack returnedItem = createSteamerItem(info);
+        ItemStack returnedItem = createSteamerItem(info, context.contraptionEntity().level());
         if (info.state().getValue(SteamerBlock.HALF)) {
             return Optional.of(ContraptionRemovalResult.single(context.targetPos(), returnedItem));
         }
         return Optional.of(new ContraptionRemovalResult(
-                List.of(), List.of(reduceSteamerToSingleLayer(info)), List.of(returnedItem), true));
+                List.of(), List.of(reduceSteamerToSingleLayer(info, context.contraptionEntity().level())), List.of(returnedItem), true));
     }
 
     private ContraptionPlacementResult single(ContraptionPlacementContext context, BlockState state,
@@ -64,16 +66,17 @@ public class StoveSteamerPlacementRule implements ContraptionPlacementRule {
                 context.targetPos(), state, nbt));
     }
 
-    private CompoundTag createSteamerNbt(ItemStack heldItem) {
+    private CompoundTag createSteamerNbt(ItemStack heldItem, Level level) {
         CompoundTag nbt = new CompoundTag();
-        CompoundTag handData = BlockItem.getBlockEntityData(heldItem);
+        var customData = heldItem.get(DataComponents.BLOCK_ENTITY_DATA);
+        CompoundTag handData = customData == null ? null : customData.copyTag();
         NonNullList<ItemStack> items = NonNullList.withSize(8, ItemStack.EMPTY);
         int[] progress = new int[8];
         int[] time = new int[8];
 
         if (handData != null) {
             NonNullList<ItemStack> handItems = NonNullList.withSize(4, ItemStack.EMPTY);
-            ContainerHelper.loadAllItems(handData, handItems);
+            ContainerHelper.loadAllItems(handData, handItems, level.registryAccess());
             for (int i = 0; i < handItems.size(); i++) {
                 items.set(i, handItems.get(i));
             }
@@ -84,18 +87,18 @@ public class StoveSteamerPlacementRule implements ContraptionPlacementRule {
             System.arraycopy(handTime, 0, time, 0, Math.min(4, handTime.length));
         }
 
-        ContainerHelper.saveAllItems(nbt, items, true);
+        ContainerHelper.saveAllItems(nbt, items, true, level.registryAccess());
         nbt.putIntArray("CookingProgress", progress);
         nbt.putIntArray("CookingTime", time);
         nbt.putString("id", "kaleidoscope_cookery:steamer");
         return nbt;
     }
 
-    private ItemStack createSteamerItem(StructureTemplate.StructureBlockInfo info) {
+    private ItemStack createSteamerItem(StructureTemplate.StructureBlockInfo info, Level level) {
         ItemStack stack = ModItems.STEAMER.get().getDefaultInstance();
         CompoundTag nbt = info.nbt() == null ? new CompoundTag() : info.nbt();
         NonNullList<ItemStack> items = NonNullList.withSize(8, ItemStack.EMPTY);
-        ContainerHelper.loadAllItems(nbt, items);
+        ContainerHelper.loadAllItems(nbt, items, level.registryAccess());
 
         int[] cookingProgress = normalizeArray(nbt.getIntArray("CookingProgress"));
         int[] cookingTime = normalizeArray(nbt.getIntArray("CookingTime"));
@@ -112,7 +115,7 @@ public class StoveSteamerPlacementRule implements ContraptionPlacementRule {
         }
 
         CompoundTag blockEntityData = new CompoundTag();
-        ContainerHelper.saveAllItems(blockEntityData, savedItems, false);
+        ContainerHelper.saveAllItems(blockEntityData, savedItems, false, level.registryAccess());
         if (!blockEntityData.isEmpty()) {
             blockEntityData.putIntArray("CookingProgress", savedProgress);
             blockEntityData.putIntArray("CookingTime", savedTime);
@@ -127,10 +130,10 @@ public class StoveSteamerPlacementRule implements ContraptionPlacementRule {
     }
 
     private StructureTemplate.StructureBlockInfo reduceSteamerToSingleLayer(
-            StructureTemplate.StructureBlockInfo info) {
+            StructureTemplate.StructureBlockInfo info, Level level) {
         CompoundTag nbt = info.nbt() == null ? new CompoundTag() : info.nbt().copy();
         NonNullList<ItemStack> items = NonNullList.withSize(8, ItemStack.EMPTY);
-        ContainerHelper.loadAllItems(nbt, items);
+        ContainerHelper.loadAllItems(nbt, items, level.registryAccess());
         int[] cookingProgress = normalizeArray(nbt.getIntArray("CookingProgress"));
         int[] cookingTime = normalizeArray(nbt.getIntArray("CookingTime"));
         for (int i = 4; i < 8; i++) {
@@ -138,7 +141,7 @@ public class StoveSteamerPlacementRule implements ContraptionPlacementRule {
             cookingProgress[i] = 0;
             cookingTime[i] = 0;
         }
-        ContainerHelper.saveAllItems(nbt, items, true);
+        ContainerHelper.saveAllItems(nbt, items, true, level.registryAccess());
         nbt.putIntArray("CookingProgress", cookingProgress);
         nbt.putIntArray("CookingTime", cookingTime);
         BlockState state = info.state().setValue(SteamerBlock.HALF, true);

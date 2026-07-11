@@ -8,7 +8,6 @@ import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.NinePart;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.registry.FoodBiteRegistry;
 import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.Quality;
 import com.github.ysbbbbbb.kaleidoscopecookery.item.quality.QualityUtils;
-import com.mojang.datafixers.util.Pair;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
@@ -22,6 +21,7 @@ import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -39,7 +39,6 @@ import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.commons.lang3.tuple.MutablePair;
 
 
@@ -467,13 +466,14 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
         }
 
         player.getFoodData().eat(
-                (int) Math.round(foodProperties.getNutrition() * ratio),
-                (float) (foodProperties.getSaturationModifier() * ratio));
+                (int) Math.round(foodProperties.nutrition() * ratio),
+                (float) (foodProperties.saturation() * ratio));
 
         // 应用食物效果
-        for (Pair<MobEffectInstance, Float> pair : foodProperties.getEffects()) {
-            if (!contraptionEntity.level().isClientSide && pair.getFirst() != null && contraptionEntity.level().random.nextFloat() < pair.getSecond()) {
-                MobEffectInstance effect = pair.getFirst();
+        for (FoodProperties.PossibleEffect possibleEffect : foodProperties.effects()) {
+            MobEffectInstance effect = possibleEffect.effect();
+            if (!contraptionEntity.level().isClientSide && effect != null
+                    && contraptionEntity.level().random.nextFloat() < possibleEffect.probability()) {
                 player.addEffect(new MobEffectInstance(
                         effect.getEffect(),
                         (int) Math.round(effect.getDuration() * ratio),
@@ -504,7 +504,7 @@ public class FoodBiteBlockMovingInteraction extends MovingInteractionBehaviour {
      * 掉落食物的LootTable物品（bowl和额外添加物）
      */
     protected void dropLootItems(BlockState state, AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
-        ResourceLocation blockId = ForgeRegistries.BLOCKS.getKey(state.getBlock());
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         if (blockId == null) {
             return;
         }

@@ -14,10 +14,10 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.Container;
 import net.minecraft.world.ContainerHelper;
-import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.SingleRecipeInput;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.Vec3;
@@ -143,7 +143,7 @@ public class SteamerBlockMovementBehaviour implements MovementBehaviour {
         }
 
         // 读取物品和进度
-        NonNullList<ItemStack> items = readItems(nbt);
+        NonNullList<ItemStack> items = readItems(nbt, context.world);
         int[] cookingProgress = nbt.getIntArray(COOKING_PROGRESS_TAG);
         int[] cookingTime = nbt.getIntArray(COOKING_TIME_TAG);
 
@@ -171,10 +171,10 @@ public class SteamerBlockMovementBehaviour implements MovementBehaviour {
             if (progress < cookingTime[i]) {
                 continue;
             }
-            Container container = new SimpleContainer(stack);
+            SingleRecipeInput input = new SingleRecipeInput(stack);
             ItemStack resultStack = context.world.getRecipeManager()
-                    .getRecipeFor(ModRecipes.STEAMER_RECIPE, container, context.world)
-                    .map(r -> r.assemble(container, context.world.registryAccess()))
+                    .getRecipeFor(ModRecipes.STEAMER_RECIPE, input, context.world)
+                    .map(r -> r.value().assemble(input, context.world.registryAccess()))
                     .orElse(stack);
             if (!resultStack.isEmpty()) {
                 items.set(i, resultStack);
@@ -188,7 +188,7 @@ public class SteamerBlockMovementBehaviour implements MovementBehaviour {
         // 烹饪进度推进不需要频繁同步，仅在物品完成烹饪时同步
         if (changed) {
             CompoundTag newNbt = nbt.copy();
-            saveItems(newNbt, items);
+            saveItems(newNbt, items, context.world);
             newNbt.putIntArray(COOKING_PROGRESS_TAG, cookingProgress);
             newNbt.putIntArray(COOKING_TIME_TAG, cookingTime);
             ContraptionDataUtil.updateContraptionData(context, state, newNbt, true);
@@ -196,7 +196,7 @@ public class SteamerBlockMovementBehaviour implements MovementBehaviour {
             // Keep server-side progress in the contraption every tick. This updates
             // only local data; the client is synchronized when an item finishes.
             CompoundTag newNbt = nbt.copy();
-            saveItems(newNbt, items);
+            saveItems(newNbt, items, context.world);
             newNbt.putIntArray(COOKING_PROGRESS_TAG, cookingProgress);
             newNbt.putIntArray(COOKING_TIME_TAG, cookingTime);
             ContraptionDataUtil.updateContraptionData(context, state, newNbt, false);
@@ -284,10 +284,10 @@ public class SteamerBlockMovementBehaviour implements MovementBehaviour {
     /**
      * 读取物品列表
      */
-    private NonNullList<ItemStack> readItems(CompoundTag nbt) {
+    private NonNullList<ItemStack> readItems(CompoundTag nbt, Level level) {
         NonNullList<ItemStack> items = NonNullList.withSize(8, ItemStack.EMPTY);
         if (nbt.contains(ITEMS_TAG, Tag.TAG_LIST)) {
-            ContainerHelper.loadAllItems(nbt, items);
+            ContainerHelper.loadAllItems(nbt, items, level.registryAccess());
         }
         return items;
     }
@@ -295,7 +295,7 @@ public class SteamerBlockMovementBehaviour implements MovementBehaviour {
     /**
      * 保存物品列表
      */
-    private void saveItems(CompoundTag nbt, NonNullList<ItemStack> items) {
-        ContainerHelper.saveAllItems(nbt, items, true);
+    private void saveItems(CompoundTag nbt, NonNullList<ItemStack> items, Level level) {
+        ContainerHelper.saveAllItems(nbt, items, true, level.registryAccess());
     }
 }

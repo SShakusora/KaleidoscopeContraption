@@ -24,9 +24,9 @@ public class MillstoneBlockMovementBehaviour implements MovementBehaviour {
                 : context.contraption.entity.toGlobalVector(Vec3.atCenterOf(context.localPos), 1));
         MillstoneBlockEntity blockEntity = new MillstoneBlockEntity(worldPos, info.state());
         blockEntity.setLevel(context.world);
-        blockEntity.load(info.nbt().copy());
+        blockEntity.loadWithComponents(info.nbt().copy(), context.world.registryAccess());
         blockEntity.tick(context.world);
-        CompoundTag updated = blockEntity.saveWithFullMetadata();
+        CompoundTag updated = blockEntity.saveWithFullMetadata(context.world.registryAccess());
         if (info.nbt().hasUUID("EntityId")
                 && !Util.NIL_UUID.equals(info.nbt().getUUID("EntityId"))
                 && updated.hasUUID("EntityId")

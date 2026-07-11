@@ -15,16 +15,18 @@ import com.sshakusora.kaleidoscope_contraption.registry.KCContraptionPlacements;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.SingleRecipeInput;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.Vec3;
@@ -178,7 +180,7 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
                     BlockState newState = targetState.setValue(SteamerBlock.HALF, false);
 
                     // 合并物品数据
-                    NonNullList<ItemStack> targetItems = readItems(targetNbt);
+                    NonNullList<ItemStack> targetItems = readItems(targetNbt, contraptionEntity.level());
                     int[] targetProgress = targetNbt.getIntArray(COOKING_PROGRESS_TAG);
                     int[] targetTime = targetNbt.getIntArray(COOKING_TIME_TAG);
 
@@ -186,10 +188,11 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
                     if (targetTime.length < 8) targetTime = new int[8];
 
                     // 从手持物品中读取数据
-                    CompoundTag handData = BlockItem.getBlockEntityData(itemInHand);
+                    var blockEntityData = itemInHand.get(DataComponents.BLOCK_ENTITY_DATA);
+                    CompoundTag handData = blockEntityData == null ? null : blockEntityData.copyTag();
                     if (handData != null) {
                         NonNullList<ItemStack> handItems = NonNullList.withSize(4, ItemStack.EMPTY);
-                        ContainerHelper.loadAllItems(handData, handItems);
+                        ContainerHelper.loadAllItems(handData, handItems, contraptionEntity.level().registryAccess());
                         int[] handProgress = handData.getIntArray(COOKING_PROGRESS_TAG);
                         int[] handTime = handData.getIntArray(COOKING_TIME_TAG);
 
@@ -202,7 +205,7 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
                     }
 
                     CompoundTag newNbt = targetNbt.copy();
-                    saveItems(newNbt, targetItems);
+                    saveItems(newNbt, targetItems, contraptionEntity.level());
                     newNbt.putIntArray(COOKING_PROGRESS_TAG, targetProgress);
                     newNbt.putIntArray(COOKING_TIME_TAG, targetTime);
 
@@ -244,22 +247,22 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
         }
 
         // 然后检查配方
-        SimpleContainer container = new SimpleContainer(food);
+        SingleRecipeInput input = new SingleRecipeInput(food);
         var recipeOptional = contraptionEntity.level().getRecipeManager()
-                .getRecipeFor(ModRecipes.STEAMER_RECIPE, container, contraptionEntity.level());
+                .getRecipeFor(ModRecipes.STEAMER_RECIPE, input, contraptionEntity.level());
 
         if (recipeOptional.isEmpty()) {
             return false;
         }
 
-        SteamerRecipe recipe = recipeOptional.get();
+        SteamerRecipe recipe = recipeOptional.get().value();
         int cookTime = recipe.getCookTick();
         if (cookTime <= 0) {
             return false;
         }
 
         // 读取当前物品
-        NonNullList<ItemStack> items = readItems(nbt);
+        NonNullList<ItemStack> items = readItems(nbt, contraptionEntity.level());
         int[] cookingProgress = nbt.getIntArray(COOKING_PROGRESS_TAG);
         int[] cookingTime = nbt.getIntArray(COOKING_TIME_TAG);
 
@@ -283,7 +286,7 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
 
         if (added && !contraptionEntity.level().isClientSide) {
             CompoundTag newNbt = nbt.copy();
-            saveItems(newNbt, items);
+            saveItems(newNbt, items, contraptionEntity.level());
             newNbt.putIntArray(COOKING_PROGRESS_TAG, cookingProgress);
             newNbt.putIntArray(COOKING_TIME_TAG, cookingTime);
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
@@ -312,7 +315,7 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
         }
 
         // 读取当前物品
-        NonNullList<ItemStack> items = readItems(nbt);
+        NonNullList<ItemStack> items = readItems(nbt, contraptionEntity.level());
         int[] cookingProgress = nbt.getIntArray(COOKING_PROGRESS_TAG);
         int[] cookingTime = nbt.getIntArray(COOKING_TIME_TAG);
 
@@ -374,7 +377,7 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
                 // 完整蒸笼变为单层
                 BlockState newState = state.setValue(SteamerBlock.HALF, true);
                 CompoundTag newNbt = nbt.copy();
-                saveItems(newNbt, items);
+                saveItems(newNbt, items, contraptionEntity.level());
                 newNbt.putIntArray(COOKING_PROGRESS_TAG, cookingProgress);
                 newNbt.putIntArray(COOKING_TIME_TAG, cookingTime);
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
@@ -384,7 +387,7 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
         } else if (!contraptionEntity.level().isClientSide) {
             // 更新数据
             CompoundTag newNbt = nbt.copy();
-            saveItems(newNbt, items);
+            saveItems(newNbt, items, contraptionEntity.level());
             newNbt.putIntArray(COOKING_PROGRESS_TAG, cookingProgress);
             newNbt.putIntArray(COOKING_TIME_TAG, cookingTime);
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
@@ -422,7 +425,7 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
             if (nbt == null) nbt = new CompoundTag();
 
             // 创建蒸笼物品并保存数据
-            ItemStack steamerStack = createSteamerItemStack(steamerInfo.state(), nbt);
+            ItemStack steamerStack = createSteamerItemStack(steamerInfo.state(), nbt, contraptionEntity.level());
 
             if (steamerInfo.state().getValue(SteamerBlock.HALF)) {
                 // 单层蒸笼：移除剩余的下半部分
@@ -432,7 +435,7 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
                 ContraptionInteractionUtil.syncBlockRemoval(contraptionEntity, localPos, updatedBounds);
             } else {
                 // 双层蒸笼：先取下上半部分，下半部分继续留在Contraption中
-                StructureTemplate.StructureBlockInfo reducedInfo = reduceSteamerToSingleLayer(steamerInfo, nbt);
+                StructureTemplate.StructureBlockInfo reducedInfo = reduceSteamerToSingleLayer(steamerInfo, nbt, contraptionEntity.level());
                 var updatedBounds = ContraptionInteractionUtil.recalculateBounds(contraptionEntity);
                 ContraptionInteractionUtil.updateContraptionDataWithBound(
                         contraptionEntity, localPos, reducedInfo, updatedBounds);
@@ -468,13 +471,13 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
     /**
      * 创建蒸笼物品堆，包含方块数据
      */
-    private ItemStack createSteamerItemStack(BlockState state, CompoundTag nbt) {
+    private ItemStack createSteamerItemStack(BlockState state, CompoundTag nbt, Level level) {
         ItemStack stack = ModItems.STEAMER.get().getDefaultInstance();
 
         boolean half = state.getValue(SteamerBlock.HALF);
 
         // 读取物品和进度
-        NonNullList<ItemStack> items = readItems(nbt);
+        NonNullList<ItemStack> items = readItems(nbt, level);
         int[] cookingProgress = nbt.getIntArray(COOKING_PROGRESS_TAG);
         int[] cookingTime = nbt.getIntArray(COOKING_TIME_TAG);
 
@@ -497,7 +500,7 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
         }
 
         CompoundTag saveTag = new CompoundTag();
-        ContainerHelper.saveAllItems(saveTag, saveItems, false);
+        ContainerHelper.saveAllItems(saveTag, saveItems, false, level.registryAccess());
         if (!saveTag.isEmpty()) {
             saveTag.putIntArray(COOKING_PROGRESS_TAG, saveProgress);
             saveTag.putIntArray(COOKING_TIME_TAG, saveTime);
@@ -508,9 +511,9 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
     }
 
     private StructureTemplate.StructureBlockInfo reduceSteamerToSingleLayer(
-            StructureTemplate.StructureBlockInfo info, CompoundTag nbt) {
+            StructureTemplate.StructureBlockInfo info, CompoundTag nbt, Level level) {
         CompoundTag reducedNbt = nbt.copy();
-        NonNullList<ItemStack> items = readItems(reducedNbt);
+        NonNullList<ItemStack> items = readItems(reducedNbt, level);
         int[] cookingProgress = normalizeArray(reducedNbt.getIntArray(COOKING_PROGRESS_TAG));
         int[] cookingTime = normalizeArray(reducedNbt.getIntArray(COOKING_TIME_TAG));
         for (int i = 4; i < 8; i++) {
@@ -518,7 +521,7 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
             cookingProgress[i] = 0;
             cookingTime[i] = 0;
         }
-        saveItems(reducedNbt, items);
+        saveItems(reducedNbt, items, level);
         reducedNbt.putIntArray(COOKING_PROGRESS_TAG, cookingProgress);
         reducedNbt.putIntArray(COOKING_TIME_TAG, cookingTime);
         BlockState reducedState = info.state().setValue(SteamerBlock.HALF, true);
@@ -537,10 +540,10 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
     /**
      * 读取物品列表
      */
-    private NonNullList<ItemStack> readItems(CompoundTag nbt) {
+    private NonNullList<ItemStack> readItems(CompoundTag nbt, Level level) {
         NonNullList<ItemStack> items = NonNullList.withSize(8, ItemStack.EMPTY);
         if (nbt.contains(ITEMS_TAG, Tag.TAG_LIST)) {
-            ContainerHelper.loadAllItems(nbt, items);
+            ContainerHelper.loadAllItems(nbt, items, level.registryAccess());
         }
         return items;
     }
@@ -548,8 +551,8 @@ public class SteamerBlockMovingInteraction extends SyncedMovingInteractionBehavi
     /**
      * 保存物品列表
      */
-    private void saveItems(CompoundTag nbt, NonNullList<ItemStack> items) {
-        ContainerHelper.saveAllItems(nbt, items, true);
+    private void saveItems(CompoundTag nbt, NonNullList<ItemStack> items, Level level) {
+        ContainerHelper.saveAllItems(nbt, items, true, level.registryAccess());
     }
 
 }

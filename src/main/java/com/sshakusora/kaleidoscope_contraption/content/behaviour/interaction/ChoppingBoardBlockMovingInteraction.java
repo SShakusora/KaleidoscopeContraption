@@ -19,15 +19,14 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.items.ItemHandlerHelper;
-
-import java.util.Optional;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
 
 public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehaviour {
 
@@ -66,8 +65,8 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
         }
 
         // 读取当前状态
-        ItemStack currentCutStack = nbt.contains(CURRENT_CUT_STACK) ? ItemStack.of(nbt.getCompound(CURRENT_CUT_STACK)) : ItemStack.EMPTY;
-        ItemStack result = nbt.contains(RESULT_ITEM) ? ItemStack.of(nbt.getCompound(RESULT_ITEM)) : ItemStack.EMPTY;
+        ItemStack currentCutStack = nbt.contains(CURRENT_CUT_STACK) ? ItemStack.parseOptional(contraptionEntity.level().registryAccess(), nbt.getCompound(CURRENT_CUT_STACK)) : ItemStack.EMPTY;
+        ItemStack result = nbt.contains(RESULT_ITEM) ? ItemStack.parseOptional(contraptionEntity.level().registryAccess(), nbt.getCompound(RESULT_ITEM)) : ItemStack.EMPTY;
         int currentCutCount = nbt.getInt(CURRENT_CUT_COUNT);
         int maxCutCount = nbt.getInt(MAX_CUT_COUNT);
 
@@ -118,20 +117,21 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
     private boolean tryPutItem(Player player, AbstractContraptionEntity contraptionEntity, BlockPos localPos,
                                 BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info,
                                 ItemStack putOnItem) {
-        SimpleContainer container = new SimpleContainer(putOnItem);
-        Optional<ChoppingBoardRecipe> recipeOptional = contraptionEntity.level().getRecipeManager()
-                .getRecipeFor(ModRecipes.CHOPPING_BOARD_RECIPE, container, contraptionEntity.level());
+        SingleRecipeInput input = new SingleRecipeInput(putOnItem);
+        var recipeOptional = contraptionEntity.level().getRecipeManager()
+                .getRecipeFor(ModRecipes.CHOPPING_BOARD_RECIPE, input, contraptionEntity.level());
 
         if (recipeOptional.isPresent()) {
-            ChoppingBoardRecipe recipe = recipeOptional.get();
+            ChoppingBoardRecipe recipe = recipeOptional.get().value();
 
             if (!contraptionEntity.level().isClientSide) {
                 CompoundTag newNbt = nbt.copy();
                 newNbt.putString(MODEL_ID, recipe.getModelId().toString());
                 newNbt.putInt(MAX_CUT_COUNT, recipe.getCutCount());
                 newNbt.putInt(CURRENT_CUT_COUNT, 0);
-                newNbt.put(CURRENT_CUT_STACK, putOnItem.split(1).serializeNBT());
-                newNbt.put(RESULT_ITEM, recipe.assemble(container, contraptionEntity.level().registryAccess()).serializeNBT());
+                newNbt.put(CURRENT_CUT_STACK, putOnItem.split(1).save(contraptionEntity.level().registryAccess(), new CompoundTag()));
+                newNbt.put(RESULT_ITEM, recipe.assemble(input, contraptionEntity.level().registryAccess())
+                        .save(contraptionEntity.level().registryAccess(), new CompoundTag()));
 
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                         info.pos(), state, newNbt);
@@ -173,10 +173,10 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
 
             // 切菜成功时，有 25% 的概率消耗耐久度
             if (contraptionEntity.level().random.nextDouble() < DURABILITY_COST_PROBABILITY) {
-                cutterItem.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(player.getUsedItemHand()));
+                cutterItem.hurtAndBreak(1, player, EquipmentSlot.MAINHAND);
             }
 
-            ModTrigger.EVENT.trigger(player, ModEventTriggerType.USE_CHOPPING_BOARD);
+            ModTrigger.EVENT.get().trigger(player, ModEventTriggerType.USE_CHOPPING_BOARD);
         }
 
         // 播放音效和粒子
@@ -189,7 +189,7 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
      */
     private boolean tryTakeOutResult(Player player, AbstractContraptionEntity contraptionEntity, BlockPos localPos,
                                       BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
-        ItemStack result = nbt.contains(RESULT_ITEM) ? ItemStack.of(nbt.getCompound(RESULT_ITEM)) : ItemStack.EMPTY;
+        ItemStack result = nbt.contains(RESULT_ITEM) ? ItemStack.parseOptional(contraptionEntity.level().registryAccess(), nbt.getCompound(RESULT_ITEM)) : ItemStack.EMPTY;
 
         if (result.isEmpty()) {
             return false;
@@ -219,7 +219,7 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
     private boolean tryTakeOutRawItem(Player player, AbstractContraptionEntity contraptionEntity, BlockPos localPos,
                                        BlockState state, CompoundTag nbt, StructureTemplate.StructureBlockInfo info) {
         int currentCutCount = nbt.getInt(CURRENT_CUT_COUNT);
-        ItemStack currentCutStack = nbt.contains(CURRENT_CUT_STACK) ? ItemStack.of(nbt.getCompound(CURRENT_CUT_STACK)) : ItemStack.EMPTY;
+        ItemStack currentCutStack = nbt.contains(CURRENT_CUT_STACK) ? ItemStack.parseOptional(contraptionEntity.level().registryAccess(), nbt.getCompound(CURRENT_CUT_STACK)) : ItemStack.EMPTY;
 
         if (currentCutCount != 0 || currentCutStack.isEmpty()) {
             return false;
@@ -251,8 +251,8 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
         CompoundTag newNbt = new CompoundTag();
         newNbt.putInt(MAX_CUT_COUNT, 0);
         newNbt.putInt(CURRENT_CUT_COUNT, 0);
-        newNbt.put(CURRENT_CUT_STACK, ItemStack.EMPTY.serializeNBT());
-        newNbt.put(RESULT_ITEM, ItemStack.EMPTY.serializeNBT());
+        newNbt.put(CURRENT_CUT_STACK, ItemStack.EMPTY.saveOptional(contraptionEntity.level().registryAccess()));
+        newNbt.put(RESULT_ITEM, ItemStack.EMPTY.saveOptional(contraptionEntity.level().registryAccess()));
 
         StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
                 info.pos(), state, newNbt);
@@ -293,7 +293,7 @@ public class ChoppingBoardBlockMovingInteraction extends MovingInteractionBehavi
         // 检查切菜板上是否有物品，如果有则先取出
         CompoundTag nbt = aboveInfo.nbt();
         if (nbt != null) {
-            ItemStack currentCutStack = nbt.contains(CURRENT_CUT_STACK) ? ItemStack.of(nbt.getCompound(CURRENT_CUT_STACK)) : ItemStack.EMPTY;
+            ItemStack currentCutStack = nbt.contains(CURRENT_CUT_STACK) ? ItemStack.parseOptional(contraptionEntity.level().registryAccess(), nbt.getCompound(CURRENT_CUT_STACK)) : ItemStack.EMPTY;
             if (!currentCutStack.isEmpty()) {
                 // 有物品时不能取下，提示先取出
                 return false;

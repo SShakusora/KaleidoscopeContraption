@@ -18,7 +18,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.Tags;
+import net.neoforged.neoforge.common.Tags;
 
 public class KitchenwareRacksBlockMovingInteraction extends MovingInteractionBehaviour {
 
@@ -46,7 +46,7 @@ public class KitchenwareRacksBlockMovingInteraction extends MovingInteractionBeh
         // 获取玩家的视线方向
         Vec3 eyePosition = player.getEyePosition(1.0f);
         Vec3 lookVector = player.getViewVector(1.0f);
-        double reachDistance = player.getBlockReach();
+        double reachDistance = player.blockInteractionRange();
         Vec3 endPosition = eyePosition.add(lookVector.x * reachDistance, lookVector.y * reachDistance, lookVector.z * reachDistance);
 
         // 将视线转换到Contraption的本地坐标系
@@ -84,8 +84,8 @@ public class KitchenwareRacksBlockMovingInteraction extends MovingInteractionBeh
 
         // 读取当前槽位的物品
         ItemStack stackInRacks = isLeft
-                ? (nbt.contains(LEFT_ITEM) ? ItemStack.of(nbt.getCompound(LEFT_ITEM)) : ItemStack.EMPTY)
-                : (nbt.contains(RIGHT_ITEM) ? ItemStack.of(nbt.getCompound(RIGHT_ITEM)) : ItemStack.EMPTY);
+                ? (nbt.contains(LEFT_ITEM) ? ItemStack.parseOptional(contraptionEntity.level().registryAccess(), nbt.getCompound(LEFT_ITEM)) : ItemStack.EMPTY)
+                : (nbt.contains(RIGHT_ITEM) ? ItemStack.parseOptional(contraptionEntity.level().registryAccess(), nbt.getCompound(RIGHT_ITEM)) : ItemStack.EMPTY);
 
         // 取出物品：手为空且架子上有物品
         if (itemInHand.isEmpty() && !stackInRacks.isEmpty()) {
@@ -96,9 +96,9 @@ public class KitchenwareRacksBlockMovingInteraction extends MovingInteractionBeh
                 // 更新NBT，清空对应槽位
                 CompoundTag newNbt = nbt.copy();
                 if (isLeft) {
-                    newNbt.put(LEFT_ITEM, ItemStack.EMPTY.save(new CompoundTag()));
+                    newNbt.put(LEFT_ITEM, ItemStack.EMPTY.saveOptional(contraptionEntity.level().registryAccess()));
                 } else {
-                    newNbt.put(RIGHT_ITEM, ItemStack.EMPTY.save(new CompoundTag()));
+                    newNbt.put(RIGHT_ITEM, ItemStack.EMPTY.saveOptional(contraptionEntity.level().registryAccess()));
                 }
 
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(
@@ -119,9 +119,9 @@ public class KitchenwareRacksBlockMovingInteraction extends MovingInteractionBeh
                 // 更新NBT
                 CompoundTag newNbt = nbt.copy();
                 if (isLeft) {
-                    newNbt.put(LEFT_ITEM, toPlace.save(new CompoundTag()));
+                    newNbt.put(LEFT_ITEM, toPlace.save(contraptionEntity.level().registryAccess(), new CompoundTag()));
                 } else {
-                    newNbt.put(RIGHT_ITEM, toPlace.save(new CompoundTag()));
+                    newNbt.put(RIGHT_ITEM, toPlace.save(contraptionEntity.level().registryAccess(), new CompoundTag()));
                 }
 
                 StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(

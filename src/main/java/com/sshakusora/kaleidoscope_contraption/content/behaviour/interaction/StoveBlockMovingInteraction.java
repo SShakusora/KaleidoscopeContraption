@@ -15,6 +15,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
@@ -83,9 +84,9 @@ public class StoveBlockMovingInteraction extends SyncedMovingInteractionBehaviou
                             SoundEvents.FLINTANDSTEEL_USE,
                             SoundSource.BLOCKS, 1.0F,
                             contraptionEntity.level().getRandom().nextFloat() * 0.4F + 0.8F);
-                    itemInHand.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(activeHand));
+                    itemInHand.hurtAndBreak(1, player, activeHand == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
                 }
-                ModTrigger.EVENT.trigger(player, ModEventTriggerType.LIT_THE_STOVE);
+                ModTrigger.EVENT.get().trigger(player, ModEventTriggerType.LIT_THE_STOVE);
             }
             return true;
         }
@@ -122,7 +123,7 @@ public class StoveBlockMovingInteraction extends SyncedMovingInteractionBehaviou
                         SoundSource.BLOCKS, 0.5F,
                         2.6F + (contraptionEntity.level().random.nextFloat() - contraptionEntity.level().random.nextFloat()) * 0.8F);
 
-                itemInHand.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(activeHand));
+                itemInHand.hurtAndBreak(1, player, activeHand == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
             }
             return true;
         }
@@ -157,7 +158,7 @@ public class StoveBlockMovingInteraction extends SyncedMovingInteractionBehaviou
             StructureTemplate.StructureBlockInfo newInfo = new StructureTemplate.StructureBlockInfo(info.pos(), newState, info.nbt());
             setContraptionBlockData(contraptionEntity, localPos, newInfo);
             if (projectile.getOwner() instanceof Player player) {
-                ModTrigger.EVENT.trigger(player, ModEventTriggerType.LIT_THE_STOVE);
+                ModTrigger.EVENT.get().trigger(player, ModEventTriggerType.LIT_THE_STOVE);
             }
 
             // 查找并更新actor数据
