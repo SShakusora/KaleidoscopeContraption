@@ -249,6 +249,10 @@ public class ContraptionInteractionUtil {
      * 检查是否有热源
      */
     public static boolean hasHeatSource(MovementContext context) {
+        if (context.contraption.entity != null) {
+            return hasHeatSource(context.contraption.entity, context.localPos);
+        }
+
         Contraption contraption = context.contraption;
         BlockPos belowLocalPos = context.localPos.below();
 
@@ -264,20 +268,7 @@ public class ContraptionInteractionUtil {
             return belowState.is(TagMod.HEAT_SOURCE_BLOCKS_WITHOUT_LIT);
         }
 
-        // Contraption内部没有下方方块，检查世界中Contraption实体下方的方块
-        if (context.contraption.entity == null) {
-            return false;
-        }
-
-        Vec3 globalPos = context.contraption.entity.toGlobalVector(Vec3.atCenterOf(context.localPos), 1.0f);
-        BlockPos worldPos = new BlockPos((int) globalPos.x, (int) globalPos.y, (int) globalPos.z);
-        BlockPos worldBelowPos = worldPos.below();
-
-        BlockState worldBelowState = context.world.getBlockState(worldBelowPos);
-        if (worldBelowState.hasProperty(BlockStateProperties.LIT)) {
-            return worldBelowState.getValue(BlockStateProperties.LIT);
-        }
-        return worldBelowState.is(TagMod.HEAT_SOURCE_BLOCKS_WITHOUT_LIT);
+        return false;
     }
 
     /**
