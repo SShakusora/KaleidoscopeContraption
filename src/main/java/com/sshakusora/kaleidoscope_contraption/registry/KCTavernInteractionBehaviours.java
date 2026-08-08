@@ -3,6 +3,9 @@ package com.sshakusora.kaleidoscope_contraption.registry;
 import com.github.ysbbbbbb.kaleidoscopetavern.init.ModBlocks;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.DrinkBlockMovingInteraction;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.PotionBottleBlockMovingInteraction;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.ShakerBlockMovingInteraction;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.SignatureCocktailBlockMovingInteraction;
 import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernBarCabinetMovingInteraction;
 import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernGlasswareHolderMovingInteraction;
 import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernStorageBlockMovingInteraction;
@@ -15,6 +18,13 @@ public final class KCTavernInteractionBehaviours {
     public static void registerDefaults() {
         DrinkBlockMovingInteraction drinkInteraction = new DrinkBlockMovingInteraction();
         registerDrinkBlocks(drinkInteraction);
+
+        MovingInteractionBehaviour.REGISTRY.register(
+                ModBlocks.SIGNATURE_COCKTAIL.get(), new SignatureCocktailBlockMovingInteraction());
+        MovingInteractionBehaviour.REGISTRY.register(
+                ModBlocks.SHAKER.get(), new ShakerBlockMovingInteraction());
+        MovingInteractionBehaviour.REGISTRY.register(
+                ModBlocks.POTION_BOTTLE.get(), new PotionBottleBlockMovingInteraction());
 
         TavernStorageBlockMovingInteraction storageInteraction = new TavernStorageBlockMovingInteraction();
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.HOLDER.get(), storageInteraction);

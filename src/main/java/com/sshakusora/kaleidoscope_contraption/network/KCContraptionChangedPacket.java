@@ -191,9 +191,12 @@ public class KCContraptionChangedPacket {
                 ((ContraptionClientAccessor) contraption).getClientContraptionReference();
         ClientContraption clientContraption = reference.getAcquire();
         if (clientContraption == null) {
-            // The lazy ClientContraption will be built from the already-updated
-            // blocks and bounds when rendering starts.
-            return;
+            // Materialize it here as well so a transient render event is not lost
+            // when the first update arrives before Create's render thread does.
+            ClientContraption created =
+                    ((ContraptionClientAccessor) contraption).invokeCreateClientContraption();
+            ClientContraption canonical = reference.compareAndExchangeRelease(null, created);
+            clientContraption = canonical == null ? created : canonical;
         }
 
         // VirtualRenderWorld fixes its vertical range in the constructor. Create's
@@ -201,11 +204,22 @@ public class KCContraptionChangedPacket {
         // a newly-added block in another Y section visible.
         if (newInfo != null && clientContraption.getRenderLevel().isOutsideBuildHeight(localPos)) {
             replaceClientContraptionForExpandedBounds(contraption, reference, localPos);
+            ClientContraption replacement = reference.getAcquire();
+            if (replacement != null) {
+                BlockEntity blockEntity = replacement.getBlockEntity(localPos);
+                if (blockEntity != null) {
+                    KCContraptionRenderHooks.update(blockEntity, oldInfo, newInfo);
+                }
+            }
             return;
         }
 
         if (forceReset) {
             resetClientContraptionPreservingTransientState(contraption, clientContraption);
+            BlockEntity blockEntity = clientContraption.getBlockEntity(localPos);
+            if (blockEntity != null) {
+                KCContraptionRenderHooks.update(blockEntity, oldInfo, newInfo);
+            }
             return;
         }
 
@@ -255,6 +269,10 @@ public class KCContraptionChangedPacket {
             }
             KCContraptionRenderHooks.prepare(updatedBlockEntity, oldInfo, newInfo);
             updatedBlockEntity.handleUpdateTag(Objects.requireNonNull(newInfo.nbt()).copy());
+        }
+
+        if (updatedBlockEntity != null) {
+            KCContraptionRenderHooks.update(updatedBlockEntity, oldInfo, newInfo);
         }
 
         boolean shouldRenderBlockEntity = updatedBlockEntity != null && desiredRenderInfo.rendered();

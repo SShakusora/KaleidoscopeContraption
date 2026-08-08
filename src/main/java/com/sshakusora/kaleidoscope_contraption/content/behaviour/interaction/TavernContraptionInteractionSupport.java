@@ -8,6 +8,7 @@ import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -107,11 +108,21 @@ final class TavernContraptionInteractionSupport {
     }
 
     static void removeBlock(AbstractContraptionEntity contraptionEntity, BlockPos localPos, BlockState state) {
+        removeBlock(contraptionEntity, localPos, state.getSoundType().getBreakSound(), 0.8F);
+    }
+
+    static void removeBlock(AbstractContraptionEntity contraptionEntity, BlockPos localPos, SoundEvent sound) {
+        removeBlock(contraptionEntity, localPos, sound, 1.0F);
+    }
+
+    private static void removeBlock(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
+                                    SoundEvent sound, float pitch) {
         ContraptionInteractionUtil.removeBlockFromContraption(contraptionEntity, localPos);
         var updatedBounds = ContraptionInteractionUtil.recalculateBounds(contraptionEntity);
         contraptionEntity.getContraption().invalidateColliders();
         ContraptionInteractionUtil.syncBlockRemoval(contraptionEntity, localPos, updatedBounds);
-        ContraptionInteractionUtil.playBreakSound(contraptionEntity, localPos, state);
+        ContraptionInteractionUtil.playSound(contraptionEntity, localPos, sound,
+                net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, pitch);
     }
 
     static void playSound(AbstractContraptionEntity contraptionEntity, BlockPos localPos,
