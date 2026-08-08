@@ -4,7 +4,6 @@ import com.github.ysbbbbbb.kaleidoscopecookery.init.ModBlocks;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.registry.FoodBiteRegistry;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.registry.TeacupRegistry;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
-import com.simibubi.create.content.contraptions.actors.seat.SeatInteractionBehaviour;
 import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.*;
 
 public class KCCookeryInteractionBehaviours {
@@ -117,7 +116,7 @@ public class KCCookeryInteractionBehaviours {
         });
 
         // 注册椅子的交互行为
-        SeatInteractionBehaviour seatInteractionBehaviour = new SeatInteractionBehaviour();
+        CookerySeatMovingInteraction seatInteractionBehaviour = new CookerySeatMovingInteraction();
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_OAK.get(), seatInteractionBehaviour);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_SPRUCE.get(), seatInteractionBehaviour);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_ACACIA.get(), seatInteractionBehaviour);

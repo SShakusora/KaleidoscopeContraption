@@ -8,10 +8,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-/** Prevents the Cookery-only accessor mixin from being applied without Cookery. */
-public final class KCCookeryMixinConfigPlugin implements IMixinConfigPlugin {
-    private static final String COOKERY_CLASS =
-            "com/github/ysbbbbbb/kaleidoscopecookery/block/decoration/ChairBlock.class";
+/** Prevents Tavern-only mixins from loading without Kaleidoscope Tavern. */
+public final class KCTavernMixinConfigPlugin implements IMixinConfigPlugin {
+    private static final String TAVERN_CLASS =
+            "com/github/ysbbbbbb/kaleidoscopetavern/block/deco/SofaBlock.class";
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -24,18 +24,11 @@ public final class KCCookeryMixinConfigPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        if (!resourceExists(COOKERY_CLASS)) {
+        if (!resourceExists(TAVERN_CLASS)) {
             return false;
         }
 
-        String resourceName = targetClassName.replace('.', '/') + ".class";
-        ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-        if (contextLoader != null && contextLoader.getResource(resourceName) != null) {
-            return true;
-        }
-
-        ClassLoader pluginLoader = KCCookeryMixinConfigPlugin.class.getClassLoader();
-        return pluginLoader != null && pluginLoader.getResource(resourceName) != null;
+        return resourceExists(targetClassName.replace('.', '/') + ".class");
     }
 
     private static boolean resourceExists(String resourceName) {
@@ -44,7 +37,7 @@ public final class KCCookeryMixinConfigPlugin implements IMixinConfigPlugin {
             return true;
         }
 
-        ClassLoader pluginLoader = KCCookeryMixinConfigPlugin.class.getClassLoader();
+        ClassLoader pluginLoader = KCTavernMixinConfigPlugin.class.getClassLoader();
         return pluginLoader != null && pluginLoader.getResource(resourceName) != null;
     }
 

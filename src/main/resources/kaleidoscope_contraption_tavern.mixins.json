@@ -1,0 +1,19 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.sshakusora.kaleidoscope_contraption.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "kaleidoscope_contraption.refmap.json",
+  "plugin": "com.sshakusora.kaleidoscope_contraption.mixin.KCTavernMixinConfigPlugin",
+  "mixins": [
+    "tavern.TavernContraptionAssemblyMixin",
+    "tavern.TavernContraptionSeatMixin",
+    "tavern.TavernContraptionDisassemblyMixin"
+  ],
+  "client": [
+    "client.TavernTextBlockEntityRenderMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

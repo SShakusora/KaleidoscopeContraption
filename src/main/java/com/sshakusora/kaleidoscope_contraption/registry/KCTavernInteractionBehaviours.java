@@ -9,6 +9,8 @@ import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.Sig
 import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernBarCabinetMovingInteraction;
 import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernGlasswareHolderMovingInteraction;
 import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernStorageBlockMovingInteraction;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernSeatMovingInteraction;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernTextBoardMovingInteraction;
 
 /** Registrations that require Kaleidoscope Tavern. */
 public final class KCTavernInteractionBehaviours {
@@ -38,6 +40,66 @@ public final class KCTavernInteractionBehaviours {
 
         MovingInteractionBehaviour.REGISTRY.register(
                 ModBlocks.GLASSWARE_HOLDER.get(), new TavernGlasswareHolderMovingInteraction());
+
+        TavernTextBoardMovingInteraction textBoardInteraction = new TavernTextBoardMovingInteraction();
+        registerTextBoards(textBoardInteraction);
+
+        TavernSeatMovingInteraction seatInteraction = new TavernSeatMovingInteraction();
+        registerSeats(seatInteraction);
+    }
+
+    private static void registerTextBoards(TavernTextBoardMovingInteraction interaction) {
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHALKBOARD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BASE_SANDWICH_BOARD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.GRASS_SANDWICH_BOARD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.ALLIUM_SANDWICH_BOARD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.AZURE_BLUET_SANDWICH_BOARD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CORNFLOWER_SANDWICH_BOARD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.ORCHID_SANDWICH_BOARD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.PEONY_SANDWICH_BOARD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.PINK_PETALS_SANDWICH_BOARD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.PITCHER_PLANT_SANDWICH_BOARD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.POPPY_SANDWICH_BOARD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.SUNFLOWER_SANDWICH_BOARD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.TORCHFLOWER_SANDWICH_BOARD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.TULIP_SANDWICH_BOARD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.WITHER_ROSE_SANDWICH_BOARD.get(), interaction);
+    }
+
+    private static void registerSeats(TavernSeatMovingInteraction interaction) {
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.WHITE_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.LIGHT_GRAY_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.GRAY_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BLACK_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BROWN_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.RED_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.ORANGE_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.YELLOW_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.LIME_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.GREEN_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CYAN_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.LIGHT_BLUE_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BLUE_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.PURPLE_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.MAGENTA_SOFA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.PINK_SOFA.get(), interaction);
+
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.WHITE_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.LIGHT_GRAY_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.GRAY_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BLACK_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BROWN_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.RED_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.ORANGE_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.YELLOW_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.LIME_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.GREEN_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CYAN_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.LIGHT_BLUE_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BLUE_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.PURPLE_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.MAGENTA_BAR_STOOL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.PINK_BAR_STOOL.get(), interaction);
     }
 
     private static void registerDrinkBlocks(DrinkBlockMovingInteraction interaction) {
