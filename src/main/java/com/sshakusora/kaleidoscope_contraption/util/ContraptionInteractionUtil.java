@@ -1,6 +1,5 @@
 package com.sshakusora.kaleidoscope_contraption.util;
 
-import com.github.ysbbbbbb.kaleidoscopecookery.init.tag.TagMod;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
@@ -25,7 +24,26 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.tuple.MutablePair;
 
+import java.util.function.Predicate;
+
 public class ContraptionInteractionUtil {
+    private static Predicate<BlockState> additionalHeatSourcePredicate = state -> false;
+
+    private ContraptionInteractionUtil() {
+    }
+
+    /** Registers optional-mod heat sources without making the core utility depend on that mod. */
+    public static void registerAdditionalHeatSourcePredicate(Predicate<BlockState> predicate) {
+        additionalHeatSourcePredicate = predicate == null ? state -> false : predicate;
+    }
+
+    private static boolean isHeatSource(BlockState state) {
+        if (state.hasProperty(BlockStateProperties.LIT)) {
+            return state.getValue(BlockStateProperties.LIT);
+        }
+        return additionalHeatSourcePredicate.test(state);
+    }
+
 
     /**
      * 更新Contraption中的方块数据，包括blocks、actors和updateTags，并同步到客户端
@@ -223,13 +241,7 @@ public class ContraptionInteractionUtil {
         // 首先检查 Contraption 内部下方是否有方块
         StructureTemplate.StructureBlockInfo belowInfo = contraption.getBlocks().get(belowLocalPos);
         if (belowInfo != null) {
-            BlockState belowState = belowInfo.state();
-            // 检查是否有 LIT 属性
-            if (belowState.hasProperty(BlockStateProperties.LIT)) {
-                return belowState.getValue(BlockStateProperties.LIT);
-            }
-            // 检查是否在热源标签中
-            return belowState.is(TagMod.HEAT_SOURCE_BLOCKS_WITHOUT_LIT);
+            return isHeatSource(belowInfo.state());
         }
 
         // Contraption 内部没有下方方块，检查世界中 Contraption 实体下方的方块
@@ -238,10 +250,7 @@ public class ContraptionInteractionUtil {
         BlockPos worldBelowPos = worldPos.below();
 
         BlockState worldBelowState = contraptionEntity.level().getBlockState(worldBelowPos);
-        if (worldBelowState.hasProperty(BlockStateProperties.LIT)) {
-            return worldBelowState.getValue(BlockStateProperties.LIT);
-        }
-        return worldBelowState.is(TagMod.HEAT_SOURCE_BLOCKS_WITHOUT_LIT);
+        return isHeatSource(worldBelowState);
     }
 
 
@@ -259,13 +268,7 @@ public class ContraptionInteractionUtil {
         // 首先检查Contraption内部下方是否有方块
         StructureTemplate.StructureBlockInfo belowInfo = contraption.getBlocks().get(belowLocalPos);
         if (belowInfo != null) {
-            BlockState belowState = belowInfo.state();
-            // 检查是否有LIT属性
-            if (belowState.hasProperty(BlockStateProperties.LIT)) {
-                return belowState.getValue(BlockStateProperties.LIT);
-            }
-            // 检查是否在热源标签中
-            return belowState.is(TagMod.HEAT_SOURCE_BLOCKS_WITHOUT_LIT);
+            return isHeatSource(belowInfo.state());
         }
 
         return false;

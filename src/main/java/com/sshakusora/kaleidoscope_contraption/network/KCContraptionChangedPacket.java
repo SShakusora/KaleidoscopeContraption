@@ -1,10 +1,5 @@
 package com.sshakusora.kaleidoscope_contraption.network;
 
-import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.kitchen.ChoppingBoardBlockEntity;
-import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.kitchen.PotBlockEntity;
-import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.kitchen.StockpotBlockEntity;
-import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.kitchen.TeapotBlockEntity;
-import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.misc.TrashCanBlockEntity;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
@@ -16,6 +11,7 @@ import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ClientContraptionA
 import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionClientAccessor;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import com.sshakusora.kaleidoscope_contraption.util.DevEnvUtil;
+import com.sshakusora.kaleidoscope_contraption.util.KCContraptionRenderHooks;
 import net.createmod.catnip.nbt.NBTHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -25,7 +21,6 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -258,7 +253,7 @@ public class KCContraptionChangedPacket {
             if (stateChanged) {
                 updatedBlockEntity.setBlockState(renderState);
             }
-            prepareTransientRenderState(updatedBlockEntity, oldInfo, newInfo);
+            KCContraptionRenderHooks.prepare(updatedBlockEntity, oldInfo, newInfo);
             updatedBlockEntity.handleUpdateTag(Objects.requireNonNull(newInfo.nbt()).copy());
         }
 
@@ -412,38 +407,9 @@ public class KCContraptionChangedPacket {
             BlockEntity replacement = clientContraption.getBlockEntity(pos);
             if (replacement != null && replacement.getClass() == previous.getClass()
                     && replacement.getType() == previous.getType()) {
-                copyTransientRenderState(previous, replacement);
+                KCContraptionRenderHooks.copy(previous, replacement);
             }
         });
-    }
-
-    @OnlyIn(Dist.CLIENT)
-    private static void copyTransientRenderState(BlockEntity previous, BlockEntity replacement) {
-        if (previous instanceof PotBlockEntity oldPot && replacement instanceof PotBlockEntity newPot) {
-            newPot.animationData = oldPot.animationData;
-        } else if (previous instanceof TeapotBlockEntity oldTeapot
-                && replacement instanceof TeapotBlockEntity newTeapot) {
-            newTeapot.boilingState = oldTeapot.boilingState;
-        } else if (previous instanceof TrashCanBlockEntity oldTrashCan
-                && replacement instanceof TrashCanBlockEntity newTrashCan) {
-            newTrashCan.putState = oldTrashCan.putState;
-            newTrashCan.withdrawState = oldTrashCan.withdrawState;
-            newTrashCan.player1State = oldTrashCan.player1State;
-            newTrashCan.player2State = oldTrashCan.player2State;
-            newTrashCan.enterState = oldTrashCan.enterState;
-        } else if (previous instanceof StockpotBlockEntity oldStockpot
-                && replacement instanceof StockpotBlockEntity newStockpot) {
-            if (newStockpot.getStatus() != 0
-                    && Objects.equals(oldStockpot.getSoupBaseId(), newStockpot.getSoupBaseId())) {
-                newStockpot.renderEntity = oldStockpot.renderEntity;
-            }
-        } else if (previous instanceof ChoppingBoardBlockEntity oldBoard
-                && replacement instanceof ChoppingBoardBlockEntity newBoard
-                && Objects.equals(oldBoard.getModelId(), newBoard.getModelId())
-                && oldBoard.getMaxCutCount() == newBoard.getMaxCutCount()) {
-            newBoard.previousModel = oldBoard.previousModel;
-            newBoard.cacheModels = oldBoard.cacheModels;
-        }
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -462,42 +428,6 @@ public class KCContraptionChangedPacket {
         MovementBehaviour movement = MovementBehaviour.REGISTRY.get(state);
         boolean rendered = movement == null || !movement.disableBlockEntityRendering();
         return new BlockEntityRenderInfo(type, blockEntityClass, rendered);
-    }
-
-    @OnlyIn(Dist.CLIENT)
-    private static void prepareTransientRenderState(BlockEntity blockEntity,
-                                                    StructureTemplate.StructureBlockInfo oldInfo,
-                                                    StructureTemplate.StructureBlockInfo newInfo) {
-        CompoundTag newNbt = Objects.requireNonNull(newInfo.nbt());
-        if (blockEntity instanceof ChoppingBoardBlockEntity choppingBoard) {
-            String oldModelId = oldInfo == null || oldInfo.nbt() == null
-                    ? "" : oldInfo.nbt().getString("ModelId");
-            String newModelId = newNbt.getString("ModelId");
-            int oldMaxCutCount = oldInfo == null || oldInfo.nbt() == null
-                    ? 0 : oldInfo.nbt().getInt("MaxCutCount");
-            if (!oldModelId.equals(newModelId)
-                    || oldMaxCutCount != newNbt.getInt("MaxCutCount")) {
-                choppingBoard.previousModel = null;
-                choppingBoard.cacheModels = null;
-            }
-            return;
-        }
-
-        if (!(blockEntity instanceof StockpotBlockEntity stockpot)) {
-            return;
-        }
-
-        stockpot.visuals = null;
-        if (!newNbt.contains("LidItem", Tag.TAG_COMPOUND)) {
-            stockpot.setLidItem(ItemStack.EMPTY);
-        }
-
-        String oldSoupBase = oldInfo == null || oldInfo.nbt() == null
-                ? "" : oldInfo.nbt().getString("SoupBaseId");
-        String newSoupBase = newNbt.getString("SoupBaseId");
-        if (newNbt.getInt("Status") == 0 || !oldSoupBase.equals(newSoupBase)) {
-            stockpot.renderEntity = null;
-        }
     }
 
     private record BlockEntityRenderInfo(BlockEntityType<?> type,

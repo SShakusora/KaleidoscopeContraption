@@ -9,7 +9,6 @@ import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.ContraptionHandler;
 import com.simibubi.create.content.contraptions.ContraptionHandlerClient;
-import com.sshakusora.kaleidoscope_contraption.KaleidoscopeContraption;
 import net.createmod.catnip.data.Couple;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
@@ -27,17 +26,14 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.function.Function;
 
-@Mod.EventBusSubscriber(modid = KaleidoscopeContraption.MOD_ID, value = Dist.CLIENT)
 public final class ContraptionTeapotTextRenderer {
     private static final Function<ResourceLocation, Component> FLUID_NAME_CACHE = Util.memoize(id -> {
         if (id.equals(TeapotRecipeSerializer.EMPTY_TEA_FLUID)) {
