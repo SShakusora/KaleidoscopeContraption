@@ -1,11 +1,7 @@
 package com.sshakusora.kaleidoscope_contraption.content.behaviour.placement;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.ChoppingBoardBlock;
-import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionPlacementContext;
-import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionPlacementResult;
-import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionPlacementRule;
-import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionRemovalContext;
-import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionRemovalResult;
+import com.sshakusora.kaleidoscope_contraption.api.placement.*;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;

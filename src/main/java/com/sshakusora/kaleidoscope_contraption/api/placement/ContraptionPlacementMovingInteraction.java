@@ -2,6 +2,7 @@ package com.sshakusora.kaleidoscope_contraption.api.placement;
 
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
+import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
@@ -19,6 +20,9 @@ public class ContraptionPlacementMovingInteraction extends MovingInteractionBeha
     @Override
     public boolean handlePlayerInteraction(Player player, InteractionHand activeHand, BlockPos localPos,
                                            AbstractContraptionEntity contraptionEntity) {
+        if (KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
+            return false;
+        }
         return ContraptionPlacementManager.tryPlace(pointType, player, activeHand, localPos, contraptionEntity);
     }
 }

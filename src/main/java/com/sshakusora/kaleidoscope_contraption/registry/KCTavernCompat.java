@@ -10,6 +10,7 @@ public final class KCTavernCompat {
     public static void register() {
         KCTavernPacketHandler.register();
         KCTavernBlockMovementChecks.registerDefaults();
+        KCTavernPlacements.registerDefaults();
         KCTavernInteractionBehaviours.registerDefaults();
         KCTavernMovementBehaviours.registerDefaults();
     }

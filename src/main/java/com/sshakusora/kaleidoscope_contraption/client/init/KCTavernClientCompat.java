@@ -7,10 +7,10 @@ import com.sshakusora.kaleidoscope_contraption.registry.KCCompatMods;
 import com.sshakusora.kaleidoscope_contraption.util.KCContraptionRenderHooks;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import static net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.CROSSHAIR;
 

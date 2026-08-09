@@ -2,15 +2,8 @@ package com.sshakusora.kaleidoscope_contraption.registry;
 
 import com.github.ysbbbbbb.kaleidoscopetavern.init.ModBlocks;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.DrinkBlockMovingInteraction;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.PotionBottleBlockMovingInteraction;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.ShakerBlockMovingInteraction;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.SignatureCocktailBlockMovingInteraction;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernBarCabinetMovingInteraction;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernGlasswareHolderMovingInteraction;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernStorageBlockMovingInteraction;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernSeatMovingInteraction;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernTextBoardMovingInteraction;
+import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionPlacementMovingInteraction;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.*;
 
 /** Registrations that require Kaleidoscope Tavern. */
 public final class KCTavernInteractionBehaviours {
@@ -18,11 +11,25 @@ public final class KCTavernInteractionBehaviours {
     }
 
     public static void registerDefaults() {
+        MovingInteractionBehaviour.REGISTRY.register(
+                ModBlocks.TABLE.get(), new ContraptionPlacementMovingInteraction(KCTavernPlacements.TAVERN_TABLE_TOP));
+        MovingInteractionBehaviour.REGISTRY.register(
+                ModBlocks.BAR_COUNTER.get(),
+                new ContraptionPlacementMovingInteraction(KCTavernPlacements.TAVERN_BAR_COUNTER_TOP));
+
         DrinkBlockMovingInteraction drinkInteraction = new DrinkBlockMovingInteraction();
         registerDrinkBlocks(drinkInteraction);
 
         MovingInteractionBehaviour.REGISTRY.register(
                 ModBlocks.SIGNATURE_COCKTAIL.get(), new SignatureCocktailBlockMovingInteraction());
+
+        TavernGlasswareBlockMovingInteraction glasswareInteraction =
+                new TavernGlasswareBlockMovingInteraction();
+        registerGlasswareBlocks(glasswareInteraction);
+
+        MovingInteractionBehaviour.REGISTRY.register(
+                ModBlocks.MOLOTOV.get(), new TavernMolotovBlockMovingInteraction());
+
         MovingInteractionBehaviour.REGISTRY.register(
                 ModBlocks.SHAKER.get(), new ShakerBlockMovingInteraction());
         MovingInteractionBehaviour.REGISTRY.register(
@@ -128,5 +135,22 @@ public final class KCTavernInteractionBehaviours {
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.SAUVIGNON_BLANC_DRY_WHITE.get(), interaction);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.VINEGAR.get(), interaction);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.WATERMELON_JUICE.get(), interaction);
+    }
+
+    private static void registerGlasswareBlocks(TavernGlasswareBlockMovingInteraction interaction) {
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.EMPTY_GLASSWARE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.MYSTERY_COCKTAIL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.WHITE_LADY.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.EMERALD.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BRASS_HEART.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.GODFATHER.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.GRASSHOPPER.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.SCREWDRIVER.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.MOJITO.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.ALLIUM_GARDEN.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.DEPTH_CHARGE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.NETHER_SPECIAL.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BLOODY_MARY.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.SCULK_SPECIAL.get(), interaction);
     }
 }

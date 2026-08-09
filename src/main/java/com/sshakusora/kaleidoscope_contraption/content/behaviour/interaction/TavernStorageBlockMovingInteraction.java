@@ -1,11 +1,11 @@
 package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 
 import com.github.ysbbbbbb.kaleidoscopetavern.block.AbstractStorageBlock;
+import com.github.ysbbbbbb.kaleidoscopetavern.block.brew.BottleBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.brew.CellarCabinetBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.deco.CircularRackBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.deco.HolderBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.deco.TiltedRackBlock;
-import com.github.ysbbbbbb.kaleidoscopetavern.block.brew.BottleBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.blockentity.brew.CellarCabinetBlockEntity;
 import com.github.ysbbbbbb.kaleidoscopetavern.blockentity.deco.CircularRackBlockEntity;
 import com.github.ysbbbbbb.kaleidoscopetavern.blockentity.deco.HolderBlockEntity;

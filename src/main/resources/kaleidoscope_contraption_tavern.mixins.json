@@ -7,8 +7,8 @@
   "plugin": "com.sshakusora.kaleidoscope_contraption.mixin.KCTavernMixinConfigPlugin",
   "mixins": [
     "tavern.TavernContraptionAssemblyMixin",
-    "tavern.TavernContraptionSeatMixin",
-    "tavern.TavernContraptionDisassemblyMixin"
+    "tavern.TavernContraptionDisassemblyMixin",
+    "tavern.TavernContraptionSeatMixin"
   ],
   "client": [
     "client.TavernTextBlockEntityRenderMixin"
