@@ -12,6 +12,13 @@ public final class KCTavernInteractionBehaviours {
 
     public static void registerDefaults() {
         MovingInteractionBehaviour.REGISTRY.register(
+                ModBlocks.PRESSING_TUB.get(), new TavernPressingTubMovingInteraction());
+        MovingInteractionBehaviour.REGISTRY.register(
+                ModBlocks.BARREL.get(), new TavernBarrelMovingInteraction());
+        MovingInteractionBehaviour.REGISTRY.register(
+                ModBlocks.TAP.get(), new TavernTapMovingInteraction());
+
+        MovingInteractionBehaviour.REGISTRY.register(
                 ModBlocks.TABLE.get(), new ContraptionPlacementMovingInteraction(KCTavernPlacements.TAVERN_TABLE_TOP));
         MovingInteractionBehaviour.REGISTRY.register(
                 ModBlocks.BAR_COUNTER.get(),

@@ -2,7 +2,10 @@ package com.sshakusora.kaleidoscope_contraption.registry;
 
 import com.github.ysbbbbbb.kaleidoscopetavern.init.ModBlocks;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.TavernBarrelMovementBehaviour;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.TavernPressingTubMovementBehaviour;
 import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.TavernSeatMovementBehaviour;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.TavernTapMovementBehaviour;
 
 /** Movement actor registration for Tavern seats. */
 public final class KCTavernMovementBehaviours {
@@ -10,6 +13,13 @@ public final class KCTavernMovementBehaviours {
     }
 
     public static void registerDefaults() {
+        MovementBehaviour.REGISTRY.register(
+                ModBlocks.PRESSING_TUB.get(), new TavernPressingTubMovementBehaviour());
+        MovementBehaviour.REGISTRY.register(
+                ModBlocks.BARREL.get(), new TavernBarrelMovementBehaviour());
+        MovementBehaviour.REGISTRY.register(
+                ModBlocks.TAP.get(), new TavernTapMovementBehaviour());
+
         TavernSeatMovementBehaviour seatMovement = new TavernSeatMovementBehaviour();
         registerSeats(seatMovement);
     }
