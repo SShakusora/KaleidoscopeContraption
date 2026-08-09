@@ -1,8 +1,11 @@
 package com.sshakusora.kaleidoscope_contraption.content.behaviour.placement;
 
+import com.github.ysbbbbbb.kaleidoscopetavern.block.brew.BottleBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.brew.DrinkBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.brew.MolotovBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.brew.PotionBottleBlock;
+import com.github.ysbbbbbb.kaleidoscopetavern.block.deco.IncenseBlock;
+import com.github.ysbbbbbb.kaleidoscopetavern.block.deco.StringLightsBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.mixology.CocktailBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.mixology.GlasswareBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.mixology.ShakerBlock;
@@ -16,11 +19,15 @@ import com.github.ysbbbbbb.kaleidoscopetavern.init.ModItems;
 import com.github.ysbbbbbb.kaleidoscopetavern.item.ShakerItem;
 import com.github.ysbbbbbb.kaleidoscopetavern.item.SignatureCocktailBlockItem;
 import com.sshakusora.kaleidoscope_contraption.api.placement.*;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernBottleBlockMovingInteraction;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.PotionItem;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.Potion;
+import net.minecraft.world.item.alchemy.PotionUtils;
+import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -31,16 +38,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** Places Tavern's small drink and mixology blocks on a contraption surface. */
+import static com.github.ysbbbbbb.kaleidoscopetavern.config.GeneralConfig.*;
+
+/**
+ * Places Tavern's small drink and mixology blocks on a contraption surface.
+ */
 public class TavernSurfacePlacementRule implements ContraptionPlacementRule {
-    private enum PlacementKind {
+    enum PlacementKind {
         DRINK,
         SIGNATURE_COCKTAIL,
         COCKTAIL,
         MOLOTOV,
         GLASSWARE,
         SHAKER,
-        POTION_BOTTLE
+        POTION_BOTTLE,
+        BOTTLE,
+        INCENSE,
+        STRING_LIGHTS
     }
 
     @Override
@@ -98,6 +112,19 @@ public class TavernSurfacePlacementRule implements ContraptionPlacementRule {
                 PotionBottleBlockEntity blockEntity = new PotionBottleBlockEntity(context.targetPos(), state);
                 blockEntity.setPotionStack(context.heldItem());
                 nbt = saveBlockEntity(blockEntity);
+            }
+            case BOTTLE -> {
+                Block block = getBottleBlockForPlacement(context.heldItem());
+                if (!(block instanceof BottleBlock)) {
+                    throw new IllegalStateException("Unable to resolve Tavern bottle placement");
+                }
+                state = orient(block.defaultBlockState(), context);
+                nbt = new CompoundTag();
+            }
+            case INCENSE, STRING_LIGHTS -> {
+                Block block = Block.byItem(context.heldItem().getItem());
+                state = orient(block.defaultBlockState(), context);
+                nbt = new CompoundTag();
             }
             default -> throw new IllegalStateException("Unhandled Tavern placement kind: " + kind);
         }
@@ -174,31 +201,94 @@ public class TavernSurfacePlacementRule implements ContraptionPlacementRule {
                     List.of(context.targetPos()), List.of(), returnedItems, true));
         }
 
+        if (block instanceof BottleBlock) {
+            return Optional.of(ContraptionRemovalResult.single(context.targetPos(),
+                    TavernBottleBlockMovingInteraction.getReturnedBottle(block)));
+        }
+
+        if (block instanceof IncenseBlock || block instanceof StringLightsBlock) {
+            return Optional.of(ContraptionRemovalResult.single(
+                    context.targetPos(), new ItemStack(block.asItem())));
+        }
+
         return Optional.empty();
     }
 
     private PlacementKind getPlacementKind(ItemStack stack) {
         Block block = Block.byItem(stack.getItem());
-        if (block instanceof DrinkBlock) {
+        PlacementKind directBlockKind = getDirectBlockPlacementKind(block);
+        if (directBlockKind != null) {
+            return directBlockKind;
+        }
+        Block bottleBlock = getBottleBlockForPlacement(stack);
+        if (bottleBlock instanceof PotionBottleBlock) {
+            return PlacementKind.POTION_BOTTLE;
+        }
+        if (bottleBlock instanceof BottleBlock) {
+            return PlacementKind.BOTTLE;
+        }
+        return null;
+    }
+
+    static PlacementKind getDirectBlockPlacementKind(Block block) {
+        return getDirectBlockPlacementKind(block.getClass());
+    }
+
+    static PlacementKind getDirectBlockPlacementKind(Class<?> blockClass) {
+        if (DrinkBlock.class.isAssignableFrom(blockClass)) {
             return PlacementKind.DRINK;
         }
-        if (block instanceof SignatureCocktailBlock) {
+        if (SignatureCocktailBlock.class.isAssignableFrom(blockClass)) {
             return PlacementKind.SIGNATURE_COCKTAIL;
         }
-        if (block instanceof CocktailBlock) {
+        if (CocktailBlock.class.isAssignableFrom(blockClass)) {
             return PlacementKind.COCKTAIL;
         }
-        if (block instanceof MolotovBlock) {
+        if (MolotovBlock.class.isAssignableFrom(blockClass)) {
             return PlacementKind.MOLOTOV;
         }
-        if (block instanceof GlasswareBlock) {
+        if (GlasswareBlock.class.isAssignableFrom(blockClass)) {
             return PlacementKind.GLASSWARE;
         }
-        if (block instanceof ShakerBlock) {
+        if (PotionBottleBlock.class.isAssignableFrom(blockClass)) {
+            return PlacementKind.POTION_BOTTLE;
+        }
+        if (BottleBlock.class.isAssignableFrom(blockClass)) {
+            return PlacementKind.BOTTLE;
+        }
+        if (IncenseBlock.class.isAssignableFrom(blockClass)) {
+            return PlacementKind.INCENSE;
+        }
+        if (StringLightsBlock.class.isAssignableFrom(blockClass)) {
+            return PlacementKind.STRING_LIGHTS;
+        }
+        if (ShakerBlock.class.isAssignableFrom(blockClass)) {
             return PlacementKind.SHAKER;
         }
-        if (block instanceof PotionBottleBlock || stack.getItem() instanceof PotionItem) {
-            return PlacementKind.POTION_BOTTLE;
+        return null;
+    }
+
+    private Block getBottleBlockForPlacement(ItemStack stack) {
+        Block block = Block.byItem(stack.getItem());
+        if (block instanceof BottleBlock || block instanceof PotionBottleBlock) {
+            return block;
+        }
+        if (stack.is(Items.POTION)) {
+            Potion potion = PotionUtils.getPotion(stack);
+            if (potion == Potions.EMPTY || potion == Potions.WATER) {
+                return WATER_BOTTLE_PLACEMENT.get() ? ModBlocks.WATER_BOTTLE.get() : null;
+            }
+            return POTION_BOTTLE_PLACEMENT.get() ? ModBlocks.POTION_BOTTLE.get() : null;
+        }
+        if (stack.is(Items.HONEY_BOTTLE)) {
+            return HONEY_BOTTLE_PLACEMENT.get() ? ModBlocks.HONEY_BOTTLE.get() : null;
+        }
+        if (stack.is(Items.DRAGON_BREATH)) {
+            return DRAGON_BREATH_BOTTLE_PLACEMENT.get()
+                    ? ModBlocks.DRAGON_BREATH_BOTTLE.get() : null;
+        }
+        if (stack.is(Items.EXPERIENCE_BOTTLE)) {
+            return EXPERIENCE_BOTTLE_PLACEMENT.get() ? ModBlocks.XP_BOTTLE.get() : null;
         }
         return null;
     }

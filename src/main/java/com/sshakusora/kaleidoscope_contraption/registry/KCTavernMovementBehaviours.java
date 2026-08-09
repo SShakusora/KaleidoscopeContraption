@@ -2,10 +2,7 @@ package com.sshakusora.kaleidoscope_contraption.registry;
 
 import com.github.ysbbbbbb.kaleidoscopetavern.init.ModBlocks;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.TavernBarrelMovementBehaviour;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.TavernPressingTubMovementBehaviour;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.TavernSeatMovementBehaviour;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.TavernTapMovementBehaviour;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.*;
 
 /** Movement actor registration for Tavern seats. */
 public final class KCTavernMovementBehaviours {
@@ -19,6 +16,9 @@ public final class KCTavernMovementBehaviours {
                 ModBlocks.BARREL.get(), new TavernBarrelMovementBehaviour());
         MovementBehaviour.REGISTRY.register(
                 ModBlocks.TAP.get(), new TavernTapMovementBehaviour());
+
+        TavernIncenseMovementBehaviour incenseMovement = new TavernIncenseMovementBehaviour();
+        registerIncenseBlocks(incenseMovement);
 
         TavernSeatMovementBehaviour seatMovement = new TavernSeatMovementBehaviour();
         registerSeats(seatMovement);
@@ -58,5 +58,16 @@ public final class KCTavernMovementBehaviours {
         MovementBehaviour.REGISTRY.register(ModBlocks.PURPLE_BAR_STOOL.get(), movement);
         MovementBehaviour.REGISTRY.register(ModBlocks.MAGENTA_BAR_STOOL.get(), movement);
         MovementBehaviour.REGISTRY.register(ModBlocks.PINK_BAR_STOOL.get(), movement);
+    }
+
+    private static void registerIncenseBlocks(TavernIncenseMovementBehaviour movement) {
+        MovementBehaviour.REGISTRY.register(ModBlocks.SAKURA_INCENSE.get(), movement);
+        MovementBehaviour.REGISTRY.register(ModBlocks.PINE_INCENSE.get(), movement);
+        MovementBehaviour.REGISTRY.register(ModBlocks.GINKGO_INCENSE.get(), movement);
+        MovementBehaviour.REGISTRY.register(ModBlocks.SPORE_INCENSE.get(), movement);
+        MovementBehaviour.REGISTRY.register(ModBlocks.CATNIP_INCENSE.get(), movement);
+        MovementBehaviour.REGISTRY.register(ModBlocks.SNOW_INCENSE.get(), movement);
+        MovementBehaviour.REGISTRY.register(ModBlocks.BUTTERFLY_INCENSE.get(), movement);
+        MovementBehaviour.REGISTRY.register(ModBlocks.FIREFLY_INCENSE.get(), movement);
     }
 }

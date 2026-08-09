@@ -42,6 +42,22 @@ public final class KCTavernInteractionBehaviours {
         MovingInteractionBehaviour.REGISTRY.register(
                 ModBlocks.POTION_BOTTLE.get(), new PotionBottleBlockMovingInteraction());
 
+        TavernBottleBlockMovingInteraction bottleInteraction =
+                new TavernBottleBlockMovingInteraction();
+        registerBottleBlocks(bottleInteraction);
+
+        TavernIncenseMovingInteraction incenseInteraction =
+                new TavernIncenseMovingInteraction();
+        registerIncenseBlocks(incenseInteraction);
+
+        TavernStringLightsMovingInteraction stringLightsInteraction =
+                new TavernStringLightsMovingInteraction();
+        registerStringLights(stringLightsInteraction);
+
+        TavernPendantLampMovingInteraction pendantLampInteraction =
+                new TavernPendantLampMovingInteraction();
+        registerPendantLamps(pendantLampInteraction);
+
         TavernStorageBlockMovingInteraction storageInteraction = new TavernStorageBlockMovingInteraction();
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.HOLDER.get(), storageInteraction);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.TILTED_RACK.get(), storageInteraction);
@@ -159,5 +175,50 @@ public final class KCTavernInteractionBehaviours {
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.NETHER_SPECIAL.get(), interaction);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BLOODY_MARY.get(), interaction);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.SCULK_SPECIAL.get(), interaction);
+    }
+
+    private static void registerBottleBlocks(TavernBottleBlockMovingInteraction interaction) {
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.EMPTY_BOTTLE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.WATER_BOTTLE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.HONEY_BOTTLE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.DRAGON_BREATH_BOTTLE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.XP_BOTTLE.get(), interaction);
+    }
+
+    private static void registerIncenseBlocks(TavernIncenseMovingInteraction interaction) {
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.SAKURA_INCENSE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.PINE_INCENSE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.GINKGO_INCENSE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.SPORE_INCENSE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CATNIP_INCENSE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.SNOW_INCENSE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BUTTERFLY_INCENSE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.FIREFLY_INCENSE.get(), interaction);
+    }
+
+    private static void registerStringLights(TavernStringLightsMovingInteraction interaction) {
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_COLORLESS.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_WHITE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_LIGHT_GRAY.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_GRAY.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_BLACK.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_BROWN.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_RED.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_ORANGE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_YELLOW.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_LIME.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_GREEN.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_CYAN.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_LIGHT_BLUE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_BLUE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_PURPLE.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_MAGENTA.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.STRING_LIGHTS_PINK.get(), interaction);
+    }
+
+    private static void registerPendantLamps(TavernPendantLampMovingInteraction interaction) {
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BELL_PENDANT_LAMP.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.YELLOW_PENDANT_LAMP.get(), interaction);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BLUE_PENDANT_LAMP.get(), interaction);
     }
 }

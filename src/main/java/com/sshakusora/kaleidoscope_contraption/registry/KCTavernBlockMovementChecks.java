@@ -1,10 +1,10 @@
 package com.sshakusora.kaleidoscope_contraption.registry;
 
 import com.github.ysbbbbbb.kaleidoscopetavern.block.brew.BarrelBlock;
+import com.github.ysbbbbbb.kaleidoscopetavern.block.brew.BottleBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.brew.PressingTubBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.brew.TapBlock;
-import com.github.ysbbbbbb.kaleidoscopetavern.block.deco.ChalkboardBlock;
-import com.github.ysbbbbbb.kaleidoscopetavern.block.deco.SandwichBoardBlock;
+import com.github.ysbbbbbb.kaleidoscopetavern.block.deco.*;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.properties.PositionType;
 import com.simibubi.create.api.contraption.BlockMovementChecks;
 import net.minecraft.core.BlockPos;
@@ -12,20 +12,23 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.AttachFace;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.state.properties.Half;
 
-/** Create attachment checks for Tavern's multi-block boards. */
+/**
+ * Create attachment checks for Tavern's multi-block boards.
+ */
 public final class KCTavernBlockMovementChecks {
     private KCTavernBlockMovementChecks() {
     }
 
     public static void registerDefaults() {
         BlockMovementChecks.registerMovementNecessaryCheck((state, level, pos) ->
-                isBrewingDevice(state)
+                isMovementNecessary(state)
                         ? BlockMovementChecks.CheckResult.SUCCESS
                         : BlockMovementChecks.CheckResult.PASS);
         BlockMovementChecks.registerMovementAllowedCheck((state, level, pos) ->
-                isBrewingDevice(state)
+                isMovementNecessary(state)
                         ? BlockMovementChecks.CheckResult.SUCCESS
                         : BlockMovementChecks.CheckResult.PASS);
         BlockMovementChecks.registerAttachedCheck(KCTavernBlockMovementChecks::isAttached);
@@ -34,7 +37,8 @@ public final class KCTavernBlockMovementChecks {
                 return BlockMovementChecks.CheckResult.SUCCESS;
             }
             if (state.getBlock() instanceof SandwichBoardBlock
-                    || state.getBlock() instanceof ChalkboardBlock) {
+                    || state.getBlock() instanceof ChalkboardBlock
+                    || isAdaptedFragileBlock(state)) {
                 return BlockMovementChecks.CheckResult.SUCCESS;
             }
             return BlockMovementChecks.CheckResult.PASS;
@@ -43,6 +47,35 @@ public final class KCTavernBlockMovementChecks {
 
     private static BlockMovementChecks.CheckResult isAttached(BlockState state, Level level,
                                                               BlockPos pos, Direction direction) {
+        if (state.getBlock() instanceof BottleBlock
+                || state.getBlock() instanceof IncenseBlock) {
+            return direction == Direction.DOWN
+                    ? BlockMovementChecks.CheckResult.SUCCESS
+                    : BlockMovementChecks.CheckResult.PASS;
+        }
+
+        if (state.getBlock() instanceof StringLightsBlock) {
+            return direction == state.getValue(StringLightsBlock.FACING).getOpposite()
+                    ? BlockMovementChecks.CheckResult.SUCCESS
+                    : BlockMovementChecks.CheckResult.PASS;
+        }
+
+        if (state.getBlock() instanceof PendantLampBlock) {
+            DoubleBlockHalf half = state.getValue(PendantLampBlock.HALF);
+            if (half == DoubleBlockHalf.UPPER && direction == Direction.UP) {
+                return BlockMovementChecks.CheckResult.SUCCESS;
+            }
+            if ((half == DoubleBlockHalf.UPPER && direction == Direction.DOWN)
+                    || (half == DoubleBlockHalf.LOWER && direction == Direction.UP)) {
+                BlockState neighbor = level.getBlockState(pos.relative(direction));
+                return neighbor.getBlock() == state.getBlock()
+                        && neighbor.getValue(PendantLampBlock.HALF) != half
+                        ? BlockMovementChecks.CheckResult.SUCCESS
+                        : BlockMovementChecks.CheckResult.FAIL;
+            }
+            return BlockMovementChecks.CheckResult.PASS;
+        }
+
         if (state.getBlock() instanceof BarrelBlock) {
             BlockState neighbor = level.getBlockState(pos.relative(direction));
             if (neighbor.getBlock() instanceof BarrelBlock
@@ -125,6 +158,17 @@ public final class KCTavernBlockMovementChecks {
         return state.getBlock() instanceof PressingTubBlock
                 || state.getBlock() instanceof BarrelBlock
                 || state.getBlock() instanceof TapBlock;
+    }
+
+    private static boolean isMovementNecessary(BlockState state) {
+        return isBrewingDevice(state) || isAdaptedFragileBlock(state);
+    }
+
+    private static boolean isAdaptedFragileBlock(BlockState state) {
+        return state.getBlock() instanceof BottleBlock
+                || state.getBlock() instanceof IncenseBlock
+                || state.getBlock() instanceof StringLightsBlock
+                || state.getBlock() instanceof PendantLampBlock;
     }
 
     private static boolean isFrontTapPart(BlockState state, Direction direction) {
