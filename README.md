@@ -1,63 +1,62 @@
 # Kaleidoscope Contraption
 
 [![Minecraft Version](https://img.shields.io/badge/Minecraft-1.20.1-green.svg)](https://minecraft.net)
-[![Forge Version](https://img.shields.io/badge/Forge-47.1.33+-orange.svg)](https://files.minecraftforge.net)
+[![Forge Version](https://img.shields.io/badge/Forge-47.4.21%2B-orange.svg)](https://files.minecraftforge.net)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A compatibility addon that brings [Kaleidoscope Cookery](https://www.curseforge.com/minecraft/mc-mods/kaleidoscope-cookery) blocks to [Create](https://www.curseforge.com/minecraft/mc-mods/create) contraptions, allowing you to build fully functional mobile kitchens!
+A Create compatibility addon for [Kaleidoscope Cookery](https://www.curseforge.com/minecraft/mc-mods/kaleidoscope-cookery) and [Kaleidoscope Tavern](https://www.curseforge.com/minecraft/mc-mods/kaleidoscope-tavern). It brings their cooking, brewing, food, furniture, and decoration blocks to moving Create contraptions.
+
+Cookery and Tavern are optional integrations. Kaleidoscope Contraption can load without either mod; install them only when you want the corresponding support.
 
 ---
 
 ## 📖 Overview
 
-**Kaleidoscope Contraption** bridges the gap between Kaleidoscope Cookery's immersive cooking experience and Create's powerful mechanical contraptions. Ever wanted a food truck in Minecraft? Now you can build one!
+Kaleidoscope Contraption connects the block interaction and movement systems of Kaleidoscope Cookery and Kaleidoscope Tavern with Create contraptions. Mobile kitchens, food trucks, breweries, taverns, trains, elevators, and rotating restaurants can keep working while assembled and moving.
 
-This mod registers proper interaction and movement behaviors for all Kaleidoscope Cookery blocks, making them fully functional when assembled into Create contraptions (moving structures like trains, elevators, or rotating assemblies).
-
----
-
-## ✨ Features
-
-### 🍳 Cooking Appliances on the Move
-- **Wok (Pot)** - Cook your stir-fries even while the contraption is moving
-- **Stockpot** - Prepare hearty soups and stews on your mobile kitchen
-- **Shawarma Spit** - Rotate and cook delicious shawarma anywhere
-- **Steamer** - Steam your buns and dumplings on the go
-- **Stove** - The heart of your mobile cooking station
-
-### 🍽️ Interactive Food Blocks
-All food blocks with bite mechanics work seamlessly on contraptions:
-- Dark Cuisine, Suspicious Stir Fry, Slime Ball Meal
-- Fondant Pie, Dongpo Pork, Fondant Spider Eye
-- Chorus Fried Egg, Braised Fish, Golden Salad
-- Spicy Chicken, Yakitori, Pan-Seared Knight Steak
-- Stargazy Pie, Sweet and Sour Ender Pearls
-- Crystal/Blaze/Frost Lamb Chops
-- Various Sashimi styles (Nether, End, Desert, Tundra, Cold)
-- Shengjian Mantou, Candied Potato, Dough Drop Soup
-- And many more delicious dishes!
-
-### 🪑 Furniture & Storage
-- **Chairs** - Sit down and enjoy your meal while moving (supports all wood types)
-- **Cook Stools** - Perfect seating for your kitchen staff
-- **Tables** - Place and display your culinary creations (all wood variants supported)
-- **Chopping Board** - Prepare ingredients on the go
-- **Kitchenware Racks** - Store your cooking tools
-- **Fruit Basket** - Display fresh fruits
-- **Enamel Basin** - Multi-purpose container
-- **Oil Pot** - Keep your cooking oil handy
+The integration includes contraption interaction behaviours, movement behaviours, multi-part block attachment checks, surface placement rules, and client-side state synchronization for supported blocks.
 
 ---
 
-## 🎮 How It Works
+## ✨ Supported Integrations
 
-Simply build your kitchen using Kaleidoscope Cookery blocks, then assemble them into a Create contraption using:
-- **Mechanical Bearing** - For rotating kitchens
-- **Cart Assembler** - For mobile food trucks/trains
-- **Rope Pulley** - For vertical moving kitchens
-- **Elevator Pulley** - For multi-floor restaurant setups
+### 🍳 Kaleidoscope Cookery
 
-All blocks retain their functionality when the contraption is assembled and moving!
+Supported Cookery categories include:
+
+- Cooking appliances: Pot, Stockpot, Shawarma Spit, Steamer, Teapot, Millstone, and Trash Can
+- Food blocks with bite and multi-part behaviour
+- Tables, chairs, cook stools, chopping boards, kitchenware racks, fruit baskets, enamel basins, and oil pots
+- Teacups and teapot contents, including contraption placement on tables and stoves
+- Stove, table, and steamer surface placement rules
+- Multi-part attachment and brittle-block checks for Shawarma Spits and large food blocks
+- Client-side transient state preservation for pots, teapots, stockpots, chopping boards, and trash cans
+
+### 🍺 Kaleidoscope Tavern
+
+Supported Tavern categories include:
+
+- Brewing equipment: Pressing Tub, Barrel, and Tap
+- Drinks, Signature Cocktails, Shakers, Molotovs, potion bottles, bottles, and glassware
+- Glassware Holders, Holders, Tilted Racks, Circular Racks, Cellar Cabinets, Bar Cabinets, and Glass Bar Cabinets
+- Tavern Tables and Bar Counters with contraption surface placement
+- Chalkboards and flower sandwich boards
+- Sofas and bar stools, including seating while the contraption is moving
+- Incense blocks, including moving incense effects and zombie-villager conversion support
+- String Lights and Pendant Lamps, with multi-part attachment checks
+
+---
+
+## ⚙️ Create Contraption Support
+
+Supported blocks retain their registered interactions while mounted on Create contraptions such as:
+
+- Mechanical Bearings and other rotating contraptions
+- Cart Assemblers and mobile food trucks or tavern trains
+- Rope Pulleys and Elevator Pulleys
+- Moving tables, counters, stoves, brewing equipment, and seating areas
+
+The mod also handles block attachment checks, multi-block structures, placement on supported surfaces, contraption block updates, and client-side rendering state where required.
 
 ---
 
@@ -66,28 +65,33 @@ All blocks retain their functionality when the contraption is assembled and movi
 | Mod | Version | Required |
 |-----|---------|----------|
 | Minecraft | 1.20.1 | ✓ |
-| Forge | 47.1.33+ | ✓ |
+| Minecraft Forge | 47.4.21+ | ✓ |
 | Create | 6.0.8+ | ✓ |
-| Kaleidoscope Cookery | Latest | ✓ |
+| Kaleidoscope Cookery | 1.4.1+ | Optional |
+| Kaleidoscope Tavern | 1.2.0+ | Optional |
+
+Cookery and Tavern support is activated automatically when the corresponding mod is present. Their absence does not prevent the base mod from loading.
 
 ---
 
 ## 🔧 Installation
 
-1. Install **Minecraft Forge 1.20.1** (47.1.33 or higher)
-2. Download and install **[Create](https://www.curseforge.com/minecraft/mc-mods/create)**
-3. Download and install **[Kaleidoscope Cookery](https://www.curseforge.com/minecraft/mc-mods/kaleidoscope-cookery)**
-4. Download **Kaleidoscope Contraption** and place it in your `mods` folder
-5. Launch Minecraft and start building your mobile kitchen!
+1. Install **Minecraft Forge 1.20.1** (47.4.21 or higher).
+2. Install **[Create](https://www.curseforge.com/minecraft/mc-mods/create)** 6.0.8 or newer.
+3. Optionally install **[Kaleidoscope Cookery](https://www.curseforge.com/minecraft/mc-mods/kaleidoscope-cookery)** for cooking support.
+4. Optionally install **[Kaleidoscope Tavern](https://www.curseforge.com/minecraft/mc-mods/kaleidoscope-tavern)** for brewing and tavern support.
+5. Put **Kaleidoscope Contraption** in the `mods` folder and launch the game.
+
+Use versions of Cookery, Tavern, Create, and Kaleidoscope Contraption that target the same Minecraft version and mod loader.
 
 ---
 
-## 🐛 Known Issues & Compatibility
+## 🐛 Compatibility Notes
 
-- All Kaleidoscope Cookery blocks are supported on contraptions
-- Chairs and stools properly handle player seating during contraption movement
-- Food blocks with multiple bites sync correctly between players
-- Multi-part blocks (1x2 and 3x3) assemble correctly into contraptions
+- Support is registration-based: blocks listed above have dedicated contraption behaviours; unsupported or newly added upstream blocks may require a future compatibility update.
+- Cookery and Tavern are independent optional integrations. You can install either one, both, or neither.
+- Multi-part blocks must be assembled with their required parts attached so Create can preserve the structure.
+- Client and server should use the same Kaleidoscope Contraption version and the same optional integrations for multiplayer.
 
 ---
 
@@ -100,8 +104,9 @@ This mod is licensed under the **MIT License**. Feel free to use it in your modp
 ## 🙏 Credits
 
 - **Shinonome Shakusora** - Developer of Kaleidoscope Contraption
-- **Create Team** - For the amazing Create mod and its API
-- **Kaleidoscope Cookery Team** - For the delightful cooking mod
+- **Create Team** - For the Create mod and its contraption API
+- **Kaleidoscope Cookery Team** - For Kaleidoscope Cookery
+- **Kaleidoscope Tavern Team** - For Kaleidoscope Tavern
 
 ---
 
@@ -112,4 +117,4 @@ This mod is licensed under the **MIT License**. Feel free to use it in your modp
 
 ---
 
-*Build your dream food train, floating restaurant, or rotating buffet - the culinary possibilities are endless!* 🚚🍜
+*Build a food train, a mobile brewery, a floating restaurant, or a rotating buffet—the contraption is your kitchen and tavern.* 🚚🍜🍺
