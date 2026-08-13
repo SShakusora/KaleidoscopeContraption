@@ -5,6 +5,8 @@ import net.minecraft.world.entity.Entity;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import net.neoforged.fml.ModList;
+import com.sshakusora.kaleidoscope_contraption.registry.KCCompatMods;
 
 public final class KCPacketHandler {
     private static final String PROTOCOL_VERSION = "1";
@@ -17,6 +19,9 @@ public final class KCPacketHandler {
                 KCContraptionChangedPacket::handle);
         registrar.playToServer(KCRemoveBlockPacket.TYPE, KCRemoveBlockPacket.STREAM_CODEC,
                 KCRemoveBlockPacket::handle);
+        if (ModList.get().isLoaded(KCCompatMods.TAVERN_ID)) {
+            KCTavernPacketHandler.register(registrar);
+        }
     }
 
     public static void sendToServer(KCRemoveBlockPacket packet) {

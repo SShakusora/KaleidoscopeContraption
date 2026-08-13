@@ -16,6 +16,7 @@ import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ClientContraptionA
 import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionClientAccessor;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import com.sshakusora.kaleidoscope_contraption.util.DevEnvUtil;
+import com.sshakusora.kaleidoscope_contraption.util.KCContraptionRenderHooks;
 import net.createmod.catnip.nbt.NBTHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -209,11 +210,22 @@ public class KCContraptionChangedPacket implements CustomPacketPayload {
         // a newly-added block in another Y section visible.
         if (newInfo != null && clientContraption.getRenderLevel().isOutsideBuildHeight(localPos)) {
             replaceClientContraptionForExpandedBounds(contraption, reference, localPos);
+            ClientContraption replacement = reference.getAcquire();
+            if (replacement != null) {
+                BlockEntity blockEntity = replacement.getBlockEntity(localPos);
+                if (blockEntity != null) {
+                    KCContraptionRenderHooks.update(blockEntity, oldInfo, newInfo);
+                }
+            }
             return;
         }
 
         if (forceReset) {
             resetClientContraptionPreservingTransientState(contraption, clientContraption);
+            BlockEntity blockEntity = clientContraption.getBlockEntity(localPos);
+            if (blockEntity != null) {
+                KCContraptionRenderHooks.update(blockEntity, oldInfo, newInfo);
+            }
             return;
         }
 
@@ -261,8 +273,13 @@ public class KCContraptionChangedPacket implements CustomPacketPayload {
             if (stateChanged) {
                 updatedBlockEntity.setBlockState(renderState);
             }
+            KCContraptionRenderHooks.prepare(updatedBlockEntity, oldInfo, newInfo);
             prepareTransientRenderState(updatedBlockEntity, oldInfo, newInfo);
             updatedBlockEntity.handleUpdateTag(Objects.requireNonNull(newInfo.nbt()).copy(), renderLevel.registryAccess());
+        }
+
+        if (updatedBlockEntity != null) {
+            KCContraptionRenderHooks.update(updatedBlockEntity, oldInfo, newInfo);
         }
 
         boolean shouldRenderBlockEntity = updatedBlockEntity != null && desiredRenderInfo.rendered();
@@ -415,6 +432,7 @@ public class KCContraptionChangedPacket implements CustomPacketPayload {
             BlockEntity replacement = clientContraption.getBlockEntity(pos);
             if (replacement != null && replacement.getClass() == previous.getClass()
                     && replacement.getType() == previous.getType()) {
+                KCContraptionRenderHooks.copy(previous, replacement);
                 copyTransientRenderState(previous, replacement);
             }
         });

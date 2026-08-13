@@ -7,6 +7,7 @@ import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionPlacementRegistry;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.BlockRemovalAwareMovementBehaviour;
 import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccessor;
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
@@ -96,6 +97,9 @@ public class ContraptionInteractionUtil {
         if (previousMovement != movement && previousMovement != null && previousContext != null) {
             previousMovement.stopMoving(previousContext);
         }
+        if (previousMovement != movement && previousMovement instanceof BlockRemovalAwareMovementBehaviour removalAware) {
+            removalAware.onBlockRemoved(contraptionEntity, localPos);
+        }
 
         contraption.getBlocks().put(localPos, newInfo);
         contraption.getIsLegacy().removeBoolean(localPos);
@@ -146,6 +150,9 @@ public class ContraptionInteractionUtil {
         MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> actor = findActor(contraption, localPos);
         if (actor != null) {
             MovementBehaviour movement = MovementBehaviour.REGISTRY.get(actor.getLeft().state());
+            if (movement instanceof BlockRemovalAwareMovementBehaviour removalAware) {
+                removalAware.onBlockRemoved(contraptionEntity, localPos);
+            }
             if (movement != null && actor.getRight() != null) {
                 movement.stopMoving(actor.getRight());
             }
