@@ -21,6 +21,7 @@ repositories {
 
 neoForge {
     version = neo_version
+    validateAccessTransformers = true
 
     runs {
         client { client() }
@@ -50,8 +51,10 @@ dependencies {
     runtimeOnly "dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}"
     implementation "com.tterrag.registrate:Registrate:${registrate_version}"
 
-    implementation "maven.modrinth:kaleidoscope-cookery:${kaleidoscope_cookery_version}"
-    implementation "maven.modrinth:kaleidoscopetavern:${kaleidoscope_tavern_version}"
+    compileOnly "maven.modrinth:kaleidoscope-cookery:${kaleidoscope_cookery_version}"
+    localRuntime "maven.modrinth:kaleidoscope-cookery:${kaleidoscope_cookery_version}"
+    compileOnly "maven.modrinth:kaleidoscopetavern:${kaleidoscope_tavern_version}"
+    localRuntime "maven.modrinth:kaleidoscopetavern:${kaleidoscope_tavern_version}"
     compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
     compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
     localRuntime "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"

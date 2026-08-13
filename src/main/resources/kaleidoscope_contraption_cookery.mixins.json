@@ -1,0 +1,14 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.sshakusora.kaleidoscope_contraption.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "refmap": "kaleidoscope_contraption.refmap.json",
+  "plugin": "com.sshakusora.kaleidoscope_contraption.mixin.KCCookeryMixinConfigPlugin",
+  "mixins": [
+    "accessor.FoodBiteBlockAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

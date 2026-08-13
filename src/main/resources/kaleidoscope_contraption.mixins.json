@@ -5,8 +5,7 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "accessor.ClockworkContraptionAccessor",
-    "accessor.ContraptionAccessor",
-    "accessor.FoodBiteBlockAccessor"
+    "accessor.ContraptionAccessor"
   ],
   "client": [
     "accessor.ClientContraptionAccessor",

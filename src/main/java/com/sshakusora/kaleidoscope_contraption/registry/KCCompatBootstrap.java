@@ -8,6 +8,9 @@ public final class KCCompatBootstrap {
     }
 
     public static void register() {
+        if (ModList.get().isLoaded(KCCompatMods.COOKERY_ID)) {
+            KCCookeryCompat.register();
+        }
         if (ModList.get().isLoaded(KCCompatMods.TAVERN_ID)) {
             KCTavernCompat.register();
         }

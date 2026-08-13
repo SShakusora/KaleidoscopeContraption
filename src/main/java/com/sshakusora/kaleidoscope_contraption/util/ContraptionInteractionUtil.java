@@ -1,6 +1,5 @@
 package com.sshakusora.kaleidoscope_contraption.util;
 
-import com.github.ysbbbbbb.kaleidoscopecookery.init.tag.TagMod;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
@@ -26,7 +25,15 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.tuple.MutablePair;
 
+import java.util.function.Predicate;
+
 public class ContraptionInteractionUtil {
+    private static Predicate<BlockState> additionalHeatSourcePredicate = state -> false;
+
+    /** Registers optional-mod heat sources without making the core utility depend on that mod. */
+    public static void registerAdditionalHeatSourcePredicate(Predicate<BlockState> predicate) {
+        additionalHeatSourcePredicate = predicate == null ? state -> false : predicate;
+    }
 
     /**
      * 更新Contraption中的方块数据，包括blocks、actors和updateTags，并同步到客户端
@@ -236,7 +243,7 @@ public class ContraptionInteractionUtil {
                 return belowState.getValue(BlockStateProperties.LIT);
             }
             // 检查是否在热源标签中
-            return belowState.is(TagMod.HEAT_SOURCE_BLOCKS_WITHOUT_LIT);
+            return additionalHeatSourcePredicate.test(belowState);
         }
 
         // Contraption 内部没有下方方块，检查世界中 Contraption 实体下方的方块
@@ -248,7 +255,7 @@ public class ContraptionInteractionUtil {
         if (worldBelowState.hasProperty(BlockStateProperties.LIT)) {
             return worldBelowState.getValue(BlockStateProperties.LIT);
         }
-        return worldBelowState.is(TagMod.HEAT_SOURCE_BLOCKS_WITHOUT_LIT);
+        return additionalHeatSourcePredicate.test(worldBelowState);
     }
 
 
@@ -272,7 +279,7 @@ public class ContraptionInteractionUtil {
                 return belowState.getValue(BlockStateProperties.LIT);
             }
             // 检查是否在热源标签中
-            return belowState.is(TagMod.HEAT_SOURCE_BLOCKS_WITHOUT_LIT);
+            return additionalHeatSourcePredicate.test(belowState);
         }
 
         return false;

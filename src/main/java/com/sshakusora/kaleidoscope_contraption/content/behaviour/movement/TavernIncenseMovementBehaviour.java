@@ -91,6 +91,10 @@ public final class TavernIncenseMovementBehaviour implements MovementBehaviour {
                 LivingEntity.class, area,
                 candidate -> candidate.getType().is(EntityTypeTags.UNDEAD) && candidate.isAlive())) {
             living.hurt(context.world.damageSources().magic(), 1.0F);
+            if (living instanceof ZombieVillager zombieVillager
+                    && zombieVillager.getHealth() <= 1.0F) {
+                zombieVillager.startConverting(null, 60);
+            }
         }
     }
 
