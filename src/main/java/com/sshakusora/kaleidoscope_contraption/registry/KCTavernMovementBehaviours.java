@@ -20,11 +20,11 @@ public final class KCTavernMovementBehaviours {
         TavernIncenseMovementBehaviour incenseMovement = new TavernIncenseMovementBehaviour();
         registerIncenseBlocks(incenseMovement);
 
-        TavernSeatMovementBehaviour seatMovement = new TavernSeatMovementBehaviour();
-        registerSeats(seatMovement);
+        registerSofas(new TavernSeatMovementBehaviour());
+        registerBarStools(new TavernBarStoolMovementBehaviour());
     }
 
-    private static void registerSeats(TavernSeatMovementBehaviour movement) {
+    private static void registerSofas(TavernSeatMovementBehaviour movement) {
         MovementBehaviour.REGISTRY.register(ModBlocks.WHITE_SOFA.get(), movement);
         MovementBehaviour.REGISTRY.register(ModBlocks.LIGHT_GRAY_SOFA.get(), movement);
         MovementBehaviour.REGISTRY.register(ModBlocks.GRAY_SOFA.get(), movement);
@@ -41,7 +41,9 @@ public final class KCTavernMovementBehaviours {
         MovementBehaviour.REGISTRY.register(ModBlocks.PURPLE_SOFA.get(), movement);
         MovementBehaviour.REGISTRY.register(ModBlocks.MAGENTA_SOFA.get(), movement);
         MovementBehaviour.REGISTRY.register(ModBlocks.PINK_SOFA.get(), movement);
+    }
 
+    private static void registerBarStools(TavernBarStoolMovementBehaviour movement) {
         MovementBehaviour.REGISTRY.register(ModBlocks.WHITE_BAR_STOOL.get(), movement);
         MovementBehaviour.REGISTRY.register(ModBlocks.LIGHT_GRAY_BAR_STOOL.get(), movement);
         MovementBehaviour.REGISTRY.register(ModBlocks.GRAY_BAR_STOOL.get(), movement);
