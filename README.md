@@ -25,6 +25,7 @@ The integration includes contraption interaction behaviours, movement behaviours
 Supported Cookery categories include:
 
 - Cooking appliances: Pot, Stockpot, Shawarma Spit, Steamer, Teapot, Millstone, and Trash Can
+- Cookery 1.5 blocks: Bamboo Trays, Tea Banners, Clay-Pot Milk Tea, Eight Immortals Tables, Long Benches, and Tea Trees
 - Food blocks with bite and multi-part behaviour
 - Tables, chairs, cook stools, chopping boards, kitchenware racks, fruit baskets, enamel basins, and oil pots
 - Teacups and teapot contents, including contraption placement on tables and stoves
@@ -67,7 +68,7 @@ The mod also handles block attachment checks, multi-block structures, placement 
 | Minecraft | 1.20.1 | ✓ |
 | Minecraft Forge | 47.4.21+ | ✓ |
 | Create | 6.0.8+ | ✓ |
-| Kaleidoscope Cookery | 1.4.1+ | Optional |
+| Kaleidoscope Cookery | 1.5.0+ | Optional |
 | Kaleidoscope Tavern | 1.2.0+ | Optional |
 
 Cookery and Tavern support is activated automatically when the corresponding mod is present. Their absence does not prevent the base mod from loading.
@@ -78,7 +79,7 @@ Cookery and Tavern support is activated automatically when the corresponding mod
 
 1. Install **Minecraft Forge 1.20.1** (47.4.21 or higher).
 2. Install **[Create](https://www.curseforge.com/minecraft/mc-mods/create)** 6.0.8 or newer.
-3. Optionally install **[Kaleidoscope Cookery](https://www.curseforge.com/minecraft/mc-mods/kaleidoscope-cookery)** for cooking support.
+3. Optionally install **[Kaleidoscope Cookery](https://www.curseforge.com/minecraft/mc-mods/kaleidoscope-cookery)** 1.5.0 or newer for cooking support.
 4. Optionally install **[Kaleidoscope Tavern](https://www.curseforge.com/minecraft/mc-mods/kaleidoscope-tavern)** for brewing and tavern support.
 5. Put **Kaleidoscope Contraption** in the `mods` folder and launch the game.
 
