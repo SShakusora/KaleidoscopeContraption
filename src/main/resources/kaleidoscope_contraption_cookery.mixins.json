@@ -7,9 +7,12 @@
   "plugin": "com.sshakusora.kaleidoscope_contraption.mixin.KCCookeryMixinConfigPlugin",
   "mixins": [
     "accessor.FoodBiteBlockAccessor",
+    "cookery.BambooTrayBlockEntityCapabilityMixin",
     "cookery.CookeryContraptionAssemblyMixin",
     "cookery.CookeryContraptionDisassemblyMixin",
-    "cookery.CookeryContraptionSeatMixin"
+    "cookery.CookeryContraptionSeatMixin",
+    "cookery.EightImmortalsTableBlockMixin",
+    "cookery.TeapotBlockEntityCapabilityMixin"
   ],
   "injectors": {
     "defaultRequire": 1
