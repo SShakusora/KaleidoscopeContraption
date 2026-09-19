@@ -2,6 +2,7 @@ package com.sshakusora.kaleidoscope_contraption.content.behaviour.movement;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.block.decoration.ChairBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.decoration.CookStoolBlock;
+import com.github.ysbbbbbb.kaleidoscopecookery.block.decoration.LongBenchBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.entity.SitEntity;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
@@ -22,6 +23,7 @@ import java.util.*;
 public final class CookerySeatSupport {
     private static final double CHAIR_SEAT_HEIGHT = 0.5125;
     private static final double COOK_STOOL_SEAT_HEIGHT = 0.4375;
+    private static final double LONG_BENCH_SEAT_HEIGHT = 0.5;
     private static final double COOKERY_SIT_ENTITY_OFFSET = -0.25;
 
     private CookerySeatSupport() {
@@ -29,7 +31,8 @@ public final class CookerySeatSupport {
 
     public static boolean isCookerySeat(BlockState state) {
         return state != null && (state.getBlock() instanceof ChairBlock
-                || state.getBlock() instanceof CookStoolBlock);
+                || state.getBlock() instanceof CookStoolBlock
+                || state.getBlock() instanceof LongBenchBlock);
     }
 
     public static double getSeatHeight(BlockState state) {
@@ -38,6 +41,9 @@ public final class CookerySeatSupport {
         }
         if (state.getBlock() instanceof CookStoolBlock) {
             return COOK_STOOL_SEAT_HEIGHT;
+        }
+        if (state.getBlock() instanceof LongBenchBlock) {
+            return LONG_BENCH_SEAT_HEIGHT;
         }
         throw new IllegalArgumentException("Not a Cookery seat: " + state);
     }
@@ -157,7 +163,7 @@ public final class CookerySeatSupport {
         state = placedState;
 
         SitEntity sitEntity = new SitEntity(level, worldPos, getSeatHeight(state));
-        Direction facing = state.getValue(HorizontalDirectionalBlock.FACING);
+        Direction facing = getSeatFacing(state);
         sitEntity.setYRot(facing.toYRot());
 
         if (!level.addFreshEntity(sitEntity)) {
@@ -172,5 +178,12 @@ public final class CookerySeatSupport {
 
         passenger.getPersistentData().remove("ContraptionDismountLocation");
         return true;
+    }
+
+    private static Direction getSeatFacing(BlockState state) {
+        if (state.getBlock() instanceof ChairBlock || state.getBlock() instanceof CookStoolBlock) {
+            return state.getValue(HorizontalDirectionalBlock.FACING);
+        }
+        return state.getValue(LongBenchBlock.AXIS) == Direction.Axis.X ? Direction.SOUTH : Direction.EAST;
     }
 }

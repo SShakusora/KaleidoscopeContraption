@@ -23,6 +23,7 @@ public class KCMovementBehaviours {
         MovementBehaviour.REGISTRY.register(ModBlocks.TEAPOT.get(), new TeapotBlockMovementBehaviour());
         MovementBehaviour.REGISTRY.register(ModBlocks.MILLSTONE.get(), new MillstoneBlockMovementBehaviour());
         MovementBehaviour.REGISTRY.register(ModBlocks.TRASH_CAN.get(), new TrashCanBlockMovementBehaviour());
+        MovementBehaviour.REGISTRY.register(ModBlocks.BAMBOO_TRAY.get(), new BambooTrayBlockMovementBehaviour());
 
         TeacupBlockMovementBehaviour teacupMovement = new TeacupBlockMovementBehaviour();
         TeacupRegistry.TEACUP_DATA_MAP.keySet().forEach(id -> {
@@ -58,5 +59,6 @@ public class KCMovementBehaviours {
         MovementBehaviour.REGISTRY.register(ModBlocks.COOK_STOOL_JUNGLE.get(), chairMovement);
         MovementBehaviour.REGISTRY.register(ModBlocks.COOK_STOOL_MANGROVE.get(), chairMovement);
         MovementBehaviour.REGISTRY.register(ModBlocks.COOK_STOOL_WARPED.get(), chairMovement);
+        MovementBehaviour.REGISTRY.register(ModBlocks.LONG_BENCH.get(), chairMovement);
     }
 }

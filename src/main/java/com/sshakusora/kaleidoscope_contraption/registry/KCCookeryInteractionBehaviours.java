@@ -105,6 +105,14 @@ public class KCCookeryInteractionBehaviours {
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.MILLSTONE.get(), new MillstoneBlockMovingInteraction());
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.TRASH_CAN.get(), new TrashCanBlockMovingInteraction());
 
+        // Cookery 1.5.0 additions
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BAMBOO_TRAY.get(),
+                new BambooTrayBlockMovingInteraction());
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.TEA_BANNER.get(),
+                new TeaBannerBlockMovingInteraction());
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CLAY_POT_MILK_TEA.get(),
+                new ClayPotMilkTeaBlockMovingInteraction());
+
         // 注册森罗物语的成品饮品方块交互行为
         TeacupBlockMovingInteraction teacupInteraction = new TeacupBlockMovingInteraction();
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.EMPTY_CUP.get(), teacupInteraction);
@@ -141,5 +149,6 @@ public class KCCookeryInteractionBehaviours {
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.COOK_STOOL_JUNGLE.get(), seatInteractionBehaviour);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.COOK_STOOL_MANGROVE.get(), seatInteractionBehaviour);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.COOK_STOOL_WARPED.get(), seatInteractionBehaviour);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.LONG_BENCH.get(), seatInteractionBehaviour);
     }
 }
