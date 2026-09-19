@@ -4,7 +4,6 @@ import com.github.ysbbbbbb.kaleidoscopecookery.init.ModBlocks;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.registry.FoodBiteRegistry;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.registry.TeacupRegistry;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
-import com.simibubi.create.content.contraptions.actors.seat.SeatInteractionBehaviour;
 import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.*;
 
 public class KCCookeryInteractionBehaviours {
@@ -106,6 +105,14 @@ public class KCCookeryInteractionBehaviours {
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.MILLSTONE.get(), new MillstoneBlockMovingInteraction());
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.TRASH_CAN.get(), new TrashCanBlockMovingInteraction());
 
+        // 1.5.0 新增方块交互
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.BAMBOO_TRAY.get(),
+                new BambooTrayBlockMovingInteraction());
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.TEA_BANNER.get(),
+                new TeaBannerBlockMovingInteraction());
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CLAY_POT_MILK_TEA.get(),
+                new ClayPotMilkTeaBlockMovingInteraction());
+
         TeacupBlockMovingInteraction teacupInteraction = new TeacupBlockMovingInteraction();
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.EMPTY_CUP.get(), teacupInteraction);
         TeacupRegistry.TEACUP_DATA_MAP.keySet().forEach(id -> {
@@ -115,8 +122,8 @@ public class KCCookeryInteractionBehaviours {
             }
         });
 
-        // 注册椅子的交互行为
-        SeatInteractionBehaviour seatInteractionBehaviour = new SeatInteractionBehaviour();
+        // 注册椅子、厨娘凳和长凳的交互行为
+        CookerySeatMovingInteraction seatInteractionBehaviour = new CookerySeatMovingInteraction();
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_OAK.get(), seatInteractionBehaviour);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_SPRUCE.get(), seatInteractionBehaviour);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.CHAIR_ACACIA.get(), seatInteractionBehaviour);
@@ -141,5 +148,6 @@ public class KCCookeryInteractionBehaviours {
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.COOK_STOOL_JUNGLE.get(), seatInteractionBehaviour);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.COOK_STOOL_MANGROVE.get(), seatInteractionBehaviour);
         MovingInteractionBehaviour.REGISTRY.register(ModBlocks.COOK_STOOL_WARPED.get(), seatInteractionBehaviour);
+        MovingInteractionBehaviour.REGISTRY.register(ModBlocks.LONG_BENCH.get(), seatInteractionBehaviour);
     }
 }

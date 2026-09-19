@@ -3,8 +3,10 @@ package com.sshakusora.kaleidoscope_contraption;
 import com.mojang.logging.LogUtils;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
 import com.sshakusora.kaleidoscope_contraption.registry.KCCompatBootstrap;
+import com.sshakusora.kaleidoscope_contraption.registry.KCCookeryCapabilities;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import org.slf4j.Logger;
@@ -17,6 +19,9 @@ public class KaleidoscopeContraption {
     public KaleidoscopeContraption(IEventBus modEventBus) {
         modEventBus.addListener(KaleidoscopeContraption::init);
         modEventBus.addListener(KCPacketHandler::register);
+        if (ModList.get().isLoaded("kaleidoscope_cookery")) {
+            modEventBus.addListener(KCCookeryCapabilities::register);
+        }
     }
 
     public static void init(final FMLCommonSetupEvent event) {

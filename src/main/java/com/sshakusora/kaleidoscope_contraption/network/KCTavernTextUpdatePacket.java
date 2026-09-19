@@ -4,10 +4,10 @@ import com.github.ysbbbbbb.kaleidoscopetavern.util.TextAlignment;
 import com.sshakusora.kaleidoscope_contraption.KaleidoscopeContraption;
 import com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction.TavernTextBoardSupport;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public record KCTavernTextUpdatePacket(int entityId, BlockPos localPos, String text,

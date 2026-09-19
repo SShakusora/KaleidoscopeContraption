@@ -1,9 +1,12 @@
 package com.sshakusora.kaleidoscope_contraption.content.behaviour.movement;
 
+import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.actors.seat.SeatMovementBehaviour;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
+import net.minecraft.core.BlockPos;
 
-public class ChairBlockMovementBehaviour extends SeatMovementBehaviour {
+public class ChairBlockMovementBehaviour extends SeatMovementBehaviour
+        implements BlockRemovalAwareMovementBehaviour {
 
     @Override
     public void startMoving(MovementContext context) {
@@ -16,5 +19,11 @@ public class ChairBlockMovementBehaviour extends SeatMovementBehaviour {
             indexOf = context.contraption.getSeats().size() - 1;
         }
         context.data.putInt("SeatIndex", indexOf);
+    }
+
+    @Override
+    public void onBlockRemoved(AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
+        CookerySeatSupport.ejectPassengers(contraptionEntity, localPos);
+        CookerySeatSupport.removeSeat(contraptionEntity, localPos);
     }
 }

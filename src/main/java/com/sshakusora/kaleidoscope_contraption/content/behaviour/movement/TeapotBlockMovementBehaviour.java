@@ -8,32 +8,46 @@ import com.github.ysbbbbbb.kaleidoscopecookery.crafting.serializer.TeapotRecipeS
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModParticles;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModRecipes;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModSounds;
+import com.github.ysbbbbbb.kaleidoscopecookery.init.registry.TeacupRegistry;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
+import com.simibubi.create.api.contraption.storage.item.MountedItemStorage;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionDataUtil;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LevelEvent;
+import net.minecraft.world.level.block.PointedDripstoneBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 
+/** Runs Cookery's teapot logic while the teapot is mounted on a contraption. */
 public class TeapotBlockMovementBehaviour implements MovementBehaviour {
     private static final String INPUT = "Input";
     private static final String TEA_FLUID_ID = "TeaFluidId";
     private static final String RESULT = "Result";
     private static final String STATUS = "Status";
     private static final String CURRENT_TICK = "CurrentTick";
+    private static final int DRIPSTONE_SEARCH_LENGTH = 11;
 
     @Override
     public void tick(MovementContext context) {
         StructureTemplate.StructureBlockInfo info = context.contraption.getBlocks().get(context.localPos);
-        if (info == null || !(info.state().getBlock() instanceof TeapotBlock) || info.nbt() == null) return;
+        if (info == null || !(info.state().getBlock() instanceof TeapotBlock) || info.nbt() == null) {
+            return;
+        }
 
         if (context.world.isClientSide) {
             if (context.contraption.getBlockEntityClientSide(context.localPos)
@@ -45,58 +59,201 @@ public class TeapotBlockMovementBehaviour implements MovementBehaviour {
             return;
         }
 
-        CompoundTag nbt = info.nbt();
+        CompoundTag nbt = info.nbt().copy();
+        MountedItemStorage mountedStorage = context.getItemStorage();
         int status = nbt.getInt(STATUS);
+        boolean changed = false;
+        boolean ingredientInserted = false;
+
+        if (status == ITeapot.PUT_INGREDIENT) {
+            ResourceLocation fluidId = ResourceLocation.tryParse(nbt.getString(TEA_FLUID_ID));
+            if (isEmptyTeaFluid(fluidId)) {
+                Fluid dripstoneFluid = findDripstoneFluid(context);
+                if (dripstoneFluid != null) {
+                    nbt.putString(TEA_FLUID_ID, BuiltInRegistries.FLUID.getKey(dripstoneFluid).toString());
+                    changed = true;
+                    playDripstoneEffect(context, dripstoneFluid);
+                }
+            }
+
+            ingredientInserted = syncMountedIngredient(context, nbt, mountedStorage);
+            changed |= ingredientInserted;
+        } else {
+            // SimpleMountedStorage copies the handler into a mutable slot. Once
+            // the teapot starts cooking, reject anything inserted into that copy.
+            clearMountedStorage(mountedStorage);
+        }
+
+        status = nbt.getInt(STATUS);
         long offset = context.world.getGameTime() + context.localPos.hashCode();
         if (status == ITeapot.FINISHED) {
             if (Math.floorMod(offset, 11) == 0 && ContraptionInteractionUtil.hasHeatSource(context)) {
                 playEffects(context, true);
             }
+            if (changed) {
+                ContraptionDataUtil.updateContraptionData(context, info.state(), nbt, true);
+            }
             return;
         }
-        if (Math.floorMod(offset, 23) != 0 || !ContraptionInteractionUtil.hasHeatSource(context)) return;
 
-        var fluidId = ResourceLocation.tryParse(nbt.getString(TEA_FLUID_ID));
-        if (fluidId == null || fluidId.equals(TeapotRecipeSerializer.EMPTY_TEA_FLUID)) return;
+        if (Math.floorMod(offset, 23) == 0 && ContraptionInteractionUtil.hasHeatSource(context)
+                && !ingredientInserted) {
+            ResourceLocation fluidId = ResourceLocation.tryParse(nbt.getString(TEA_FLUID_ID));
+            if (!isEmptyTeaFluid(fluidId)) {
+                playEffects(context, false);
+                ItemStack input = ItemStack.parseOptional(context.world.registryAccess(), nbt.getCompound(INPUT));
+                int currentTick = nbt.getInt(CURRENT_TICK);
 
-        playEffects(context, false);
-        ItemStack input = ItemStack.parseOptional(context.world.registryAccess(), nbt.getCompound(INPUT));
-        int currentTick = nbt.getInt(CURRENT_TICK);
-        CompoundTag updated = nbt.copy();
-        boolean sync = false;
-
-        if (status == ITeapot.PUT_INGREDIENT) {
-            if (input.isEmpty()) return;
-            if (currentTick > 0) {
-                updated.putInt(CURRENT_TICK, Math.max(-1, currentTick - 23));
-            } else {
-                TeapotInput recipeInput = new TeapotInput(input, fluidId);
-                var recipe = context.world.getRecipeManager().getRecipeFor(
-                        ModRecipes.TEAPOT_RECIPE, recipeInput, context.world);
-                if (recipe.isPresent()) {
-                    var value = recipe.get().value();
-                    updated.put(RESULT, value.assemble(recipeInput, context.world.registryAccess())
-                            .save(context.world.registryAccess(), new CompoundTag()));
-                    updated.putInt(CURRENT_TICK, value.time());
-                    updated.putInt(STATUS, ITeapot.PROCESSING);
-                } else {
-                    popResource(context, input);
-                    updated.put(INPUT, ItemStack.EMPTY.saveOptional(context.world.registryAccess()));
-                    updated.put(RESULT, ItemStack.EMPTY.saveOptional(context.world.registryAccess()));
-                    updated.putInt(CURRENT_TICK, -1);
+                if (status == ITeapot.PUT_INGREDIENT && !input.isEmpty()) {
+                    if (currentTick > 0) {
+                        nbt.putInt(CURRENT_TICK, Math.max(-1, currentTick - 23));
+                        changed = true;
+                    } else {
+                        TeapotInput recipeInput = new TeapotInput(input, fluidId);
+                        var recipe = context.world.getRecipeManager().getRecipeFor(
+                                ModRecipes.TEAPOT_RECIPE, recipeInput, context.world);
+                        if (recipe.isPresent()) {
+                            var value = recipe.get().value();
+                            nbt.put(RESULT, value.assemble(recipeInput, context.world.registryAccess())
+                                    .save(context.world.registryAccess(), new CompoundTag()));
+                            nbt.putInt(CURRENT_TICK, value.time());
+                            nbt.putInt(STATUS, ITeapot.PROCESSING);
+                        } else {
+                            ItemStack mysteryTea = new ItemStack(
+                                    TeacupRegistry.getItem(TeacupRegistry.MYSTERY_TEA), 4);
+                            nbt.put(RESULT, mysteryTea.saveOptional(context.world.registryAccess()));
+                            nbt.putInt(CURRENT_TICK, TeapotRecipeSerializer.DEFAULT_TIME);
+                            nbt.putInt(STATUS, ITeapot.PROCESSING);
+                        }
+                        clearMountedStorage(mountedStorage);
+                        changed = true;
+                    }
+                } else if (status == ITeapot.PROCESSING) {
+                    if (currentTick > 0) {
+                        nbt.putInt(CURRENT_TICK, Math.max(-1, currentTick - 23));
+                    } else {
+                        nbt.putInt(STATUS, ITeapot.FINISHED);
+                        nbt.putInt(CURRENT_TICK, -1);
+                    }
+                    changed = true;
                 }
-                sync = true;
-            }
-        } else if (status == ITeapot.PROCESSING) {
-            if (currentTick > 0) {
-                updated.putInt(CURRENT_TICK, Math.max(-1, currentTick - 23));
-            } else {
-                updated.putInt(STATUS, ITeapot.FINISHED);
-                updated.putInt(CURRENT_TICK, -1);
-                sync = true;
             }
         }
-        ContraptionDataUtil.updateContraptionData(context, info.state(), updated, sync);
+
+        if (changed) {
+            ContraptionDataUtil.updateContraptionData(context, info.state(), nbt, true);
+        }
+    }
+
+    /** Mirrors Create's mutable mounted slot into Cookery's one-item input. */
+    private boolean syncMountedIngredient(MovementContext context, CompoundTag nbt,
+                                          MountedItemStorage mountedStorage) {
+        if (mountedStorage == null || mountedStorage.getSlots() == 0) {
+            return false;
+        }
+
+        ItemStack input = ItemStack.parseOptional(context.world.registryAccess(), nbt.getCompound(INPUT));
+        ResourceLocation fluidId = ResourceLocation.tryParse(nbt.getString(TEA_FLUID_ID));
+        if (input.isEmpty()) {
+            if (isEmptyTeaFluid(fluidId)) {
+                return false;
+            }
+            ItemStack mounted = mountedStorage.getStackInSlot(0);
+            if (mounted.isEmpty()) {
+                return false;
+            }
+
+            ItemStack accepted = mounted.copyWithCount(1);
+            nbt.put(INPUT, accepted.save(context.world.registryAccess(), new CompoundTag()));
+            nbt.putInt(CURRENT_TICK, TeapotBlockEntity.INGREDIENT_TIME);
+
+            ItemStack remainder = mounted.copy();
+            remainder.shrink(1);
+            mountedStorage.setStackInSlot(0, remainder);
+            return true;
+        }
+
+        // Keep the mounted copy at the same one-item shape as the real teapot.
+        // This also removes stale copies left by a manual moving interaction.
+        ItemStack expected = input.copyWithCount(1);
+        ItemStack mounted = mountedStorage.getStackInSlot(0);
+        if (!ItemStack.isSameItemSameComponents(expected, mounted) || mounted.getCount() != 1) {
+            mountedStorage.setStackInSlot(0, expected);
+        }
+        return false;
+    }
+
+    private void clearMountedStorage(MountedItemStorage mountedStorage) {
+        if (mountedStorage != null && mountedStorage.getSlots() > 0
+                && !mountedStorage.getStackInSlot(0).isEmpty()) {
+            mountedStorage.setStackInSlot(0, ItemStack.EMPTY);
+        }
+    }
+
+    /**
+     * Searches the virtual contraption blocks rather than the real world. The
+     * latter does not contain blocks attached to a moving structure.
+     */
+    private Fluid findDripstoneFluid(MovementContext context) {
+        BlockPos tip = null;
+        for (int distance = 1; distance < DRIPSTONE_SEARCH_LENGTH; distance++) {
+            BlockPos candidate = context.localPos.above(distance);
+            BlockState state = getVirtualState(context, candidate);
+            if (state == null) {
+                return null;
+            }
+            if (PointedDripstoneBlock.canDrip(state)) {
+                tip = candidate;
+                break;
+            }
+            if (!state.isAir() && !state.is(Blocks.POINTED_DRIPSTONE)) {
+                return null;
+            }
+        }
+        if (tip == null) {
+            return null;
+        }
+
+        for (int distance = 0; distance < DRIPSTONE_SEARCH_LENGTH; distance++) {
+            BlockPos above = tip.above();
+            BlockState state = getVirtualState(context, above);
+            if (state == null) {
+                return null;
+            }
+            if (state.is(Blocks.POINTED_DRIPSTONE)
+                    && state.hasProperty(PointedDripstoneBlock.TIP_DIRECTION)
+                    && state.getValue(PointedDripstoneBlock.TIP_DIRECTION) == Direction.DOWN) {
+                tip = above;
+                continue;
+            }
+            if (state.is(Blocks.MUD) && !context.world.dimensionType().ultraWarm()) {
+                return Fluids.WATER;
+            }
+            FluidState fluidState = state.getFluidState();
+            Fluid fluid = fluidState.getType();
+            return fluidState.isSource() && (fluid == Fluids.WATER || fluid == Fluids.LAVA) ? fluid : null;
+        }
+        return null;
+    }
+
+    private BlockState getVirtualState(MovementContext context, BlockPos localPos) {
+        StructureTemplate.StructureBlockInfo info = context.contraption.getBlocks().get(localPos);
+        // Contraption block maps omit air, but air is a valid drip-through
+        // segment between the teapot, the stalactite, and its source fluid.
+        return info == null ? Blocks.AIR.defaultBlockState() : info.state();
+    }
+
+    private boolean isEmptyTeaFluid(ResourceLocation fluidId) {
+        return fluidId == null || fluidId.equals(TeapotRecipeSerializer.EMPTY_TEA_FLUID);
+    }
+
+    private void playDripstoneEffect(MovementContext context, Fluid fluid) {
+        BlockPos pos = BlockPos.containing(globalPos(context));
+        context.world.levelEvent(
+                fluid == Fluids.LAVA
+                        ? LevelEvent.SOUND_DRIP_LAVA_INTO_CAULDRON
+                        : LevelEvent.SOUND_DRIP_WATER_INTO_CAULDRON,
+                pos, 0);
     }
 
     private void playEffects(MovementContext context, boolean boiling) {
@@ -108,10 +265,6 @@ public class TeapotBlockMovementBehaviour implements MovementBehaviour {
             level.sendParticles(ModParticles.COOKING.get(), pos.x, pos.y + 0.3, pos.z,
                     boiling ? 3 : 1, 0.15, 0.1, 0.15, 0.02);
         }
-    }
-
-    private void popResource(MovementContext context, ItemStack stack) {
-        Block.popResource(context.world, BlockPos.containing(globalPos(context)), stack.copy());
     }
 
     private Vec3 globalPos(MovementContext context) {

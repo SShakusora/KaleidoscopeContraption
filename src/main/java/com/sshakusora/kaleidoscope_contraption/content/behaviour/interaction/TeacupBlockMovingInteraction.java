@@ -153,6 +153,24 @@ public class TeacupBlockMovingInteraction extends MovingInteractionBehaviour {
             return true;
         }
 
+        // Cookery 1.5.0 allows a filled cup to be picked up even when the
+        // player is holding another item; the cup is dropped from the moving block.
+        if (!held.isEmpty() && tea > 0) {
+            if (!entity.level().isClientSide) {
+                ContraptionInteractionUtil.popResource(entity, pos,
+                        new ItemStack(state.getBlock().asItem()));
+                if (cups == 1) {
+                    remove(entity, pos);
+                } else {
+                    update(entity, pos, info, state
+                            .setValue(teacup.getTeaCountProperty(), tea - 1)
+                            .setValue(teacup.getCupCountProperty(), cups - 1));
+                }
+                play(entity, pos, state.getSoundType().getBreakSound());
+            }
+            return true;
+        }
+
         if (held.isEmpty()) {
             if (!entity.level().isClientSide) {
                 if (cups > tea) {

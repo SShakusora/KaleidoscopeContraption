@@ -1,8 +1,10 @@
 package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 
+import com.github.ysbbbbbb.kaleidoscopecookery.api.blockentity.ITeapot;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.TeapotBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.blockentity.kitchen.TeapotBlockEntity;
 import com.github.ysbbbbbb.kaleidoscopecookery.util.FluidUtils;
+import com.simibubi.create.api.contraption.storage.item.MountedItemStorage;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
@@ -40,7 +42,24 @@ public class TeapotBlockMovingInteraction extends BlockEntityDelegatingMovingInt
             ContraptionInteractionUtil.syncBlockRemoval(contraptionEntity, localPos, bounds);
             return true;
         }
-        if (changed) saveBlockEntity(contraptionEntity, localPos, info, blockEntity);
+        if (changed) {
+            saveBlockEntity(contraptionEntity, localPos, info, blockEntity);
+            MountedItemStorage storage = contraptionEntity.getContraption().getStorage()
+                    .getAllItemStorages().get(localPos);
+            if (storage != null && storage.getSlots() > 0) {
+                ItemStack mirrored = blockEntity.getStatus() == ITeapot.PUT_INGREDIENT
+                        ? blockEntity.getInput().copyWithCount(1)
+                        : ItemStack.EMPTY;
+                boolean fluidInteraction = held.getCapability(Capabilities.FluidHandler.ITEM) != null;
+                boolean preservePendingInput = fluidInteraction
+                        && blockEntity.getStatus() == ITeapot.PUT_INGREDIENT
+                        && blockEntity.getInput().isEmpty()
+                        && !storage.getStackInSlot(0).isEmpty();
+                if (!preservePendingInput) {
+                    storage.setStackInSlot(0, mirrored);
+                }
+            }
+        }
         return changed;
     }
 }

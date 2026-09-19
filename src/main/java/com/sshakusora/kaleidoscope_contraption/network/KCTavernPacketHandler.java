@@ -1,8 +1,8 @@
 package com.sshakusora.kaleidoscope_contraption.network;
 
-import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 /** Packets that are only meaningful while Kaleidoscope Tavern is loaded. */
 public final class KCTavernPacketHandler {
