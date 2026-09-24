@@ -7,6 +7,8 @@ import com.github.ysbbbbbb.kaleidoscopecookery.entity.SitEntity;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
+import com.sshakusora.kaleidoscope_contraption.api.seat.CookeryContraptionSeat;
+import com.sshakusora.kaleidoscope_contraption.api.seat.CookeryContraptionSeatRegistry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
@@ -19,33 +21,60 @@ import org.apache.commons.lang3.tuple.MutablePair;
 
 import java.util.*;
 
-/** Shared seat geometry and lifecycle helpers for Cookery chairs and cook stools. */
+/** Shared seat geometry and lifecycle helpers for Cookery-compatible seats. */
 public final class CookerySeatSupport {
     private static final double CHAIR_SEAT_HEIGHT = 0.5125;
     private static final double COOK_STOOL_SEAT_HEIGHT = 0.4375;
     private static final double LONG_BENCH_SEAT_HEIGHT = 0.5;
     private static final double COOKERY_SIT_ENTITY_OFFSET = -0.25;
 
+    private static final CookeryContraptionSeat CHAIR_PROVIDER = new CookeryContraptionSeat() {
+        @Override
+        public double getSeatHeight(BlockState state) {
+            return CHAIR_SEAT_HEIGHT;
+        }
+
+        @Override
+        public Direction getSeatFacing(BlockState state) {
+            return state.getValue(HorizontalDirectionalBlock.FACING);
+        }
+    };
+
+    private static final CookeryContraptionSeat COOK_STOOL_PROVIDER = new CookeryContraptionSeat() {
+        @Override
+        public double getSeatHeight(BlockState state) {
+            return COOK_STOOL_SEAT_HEIGHT;
+        }
+
+        @Override
+        public Direction getSeatFacing(BlockState state) {
+            return state.getValue(HorizontalDirectionalBlock.FACING);
+        }
+    };
+
+    private static final CookeryContraptionSeat LONG_BENCH_PROVIDER = new CookeryContraptionSeat() {
+        @Override
+        public double getSeatHeight(BlockState state) {
+            return LONG_BENCH_SEAT_HEIGHT;
+        }
+
+        @Override
+        public Direction getSeatFacing(BlockState state) {
+            return state.getValue(LongBenchBlock.AXIS) == Direction.Axis.X
+                    ? Direction.SOUTH : Direction.EAST;
+        }
+    };
+
     private CookerySeatSupport() {
     }
 
     public static boolean isCookerySeat(BlockState state) {
-        return state != null && (state.getBlock() instanceof ChairBlock
-                || state.getBlock() instanceof CookStoolBlock
-                || state.getBlock() instanceof LongBenchBlock);
+        return getSeatProvider(state) != null;
     }
 
     public static double getSeatHeight(BlockState state) {
-        if (state.getBlock() instanceof ChairBlock) {
-            return CHAIR_SEAT_HEIGHT;
-        }
-        if (state.getBlock() instanceof CookStoolBlock) {
-            return COOK_STOOL_SEAT_HEIGHT;
-        }
-        if (state.getBlock() instanceof LongBenchBlock) {
-            return LONG_BENCH_SEAT_HEIGHT;
-        }
-        throw new IllegalArgumentException("Not a Cookery seat: " + state);
+        CookeryContraptionSeat provider = requireSeatProvider(state);
+        return provider.getSeatHeight(state);
     }
 
     /** Returns the position used by Cookery's static SitEntity, transformed into world space. */
@@ -181,9 +210,45 @@ public final class CookerySeatSupport {
     }
 
     private static Direction getSeatFacing(BlockState state) {
-        if (state.getBlock() instanceof ChairBlock || state.getBlock() instanceof CookStoolBlock) {
-            return state.getValue(HorizontalDirectionalBlock.FACING);
+        return requireSeatProvider(state).getSeatFacing(state);
+    }
+
+    private static CookeryContraptionSeat requireSeatProvider(BlockState state) {
+        CookeryContraptionSeat provider = getSeatProvider(state);
+        if (provider == null) {
+            throw new IllegalArgumentException("Not a Cookery seat: " + state);
         }
-        return state.getValue(LongBenchBlock.AXIS) == Direction.Axis.X ? Direction.SOUTH : Direction.EAST;
+        return provider;
+    }
+
+    /**
+     * Resolves a seat provider in extension-first order while retaining
+     * compatibility with Cookery's built-in seat block classes.
+     */
+    private static CookeryContraptionSeat getSeatProvider(BlockState state) {
+        if (state == null) {
+            return null;
+        }
+
+        if (state.getBlock() instanceof CookeryContraptionSeat seat) {
+            return seat;
+        }
+
+        CookeryContraptionSeat registered =
+                CookeryContraptionSeatRegistry.get(state.getBlock());
+        if (registered != null) {
+            return registered;
+        }
+
+        if (state.getBlock() instanceof ChairBlock) {
+            return CHAIR_PROVIDER;
+        }
+        if (state.getBlock() instanceof CookStoolBlock) {
+            return COOK_STOOL_PROVIDER;
+        }
+        if (state.getBlock() instanceof LongBenchBlock) {
+            return LONG_BENCH_PROVIDER;
+        }
+        return null;
     }
 }
