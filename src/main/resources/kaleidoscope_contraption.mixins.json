@@ -4,6 +4,9 @@
   "package": "com.sshakusora.kaleidoscope_contraption.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "ContraptionSeatAssemblyMixin",
+    "ContraptionSeatDisassemblyMixin",
+    "ContraptionSeatMixin",
     "accessor.ClockworkContraptionAccessor",
     "accessor.ContraptionAccessor",
     "accessor.TranslatingContraptionAccessor"

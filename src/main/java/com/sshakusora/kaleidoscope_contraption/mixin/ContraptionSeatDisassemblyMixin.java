@@ -1,8 +1,8 @@
-package com.sshakusora.kaleidoscope_contraption.mixin.tavern;
+package com.sshakusora.kaleidoscope_contraption.mixin;
 
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.StructureTransform;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.TavernSeatSupport;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.ContraptionSeatSupport;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
@@ -16,13 +16,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Transfers Tavern passengers to normal static Tavern seats during disassembly. */
+/** Restores passengers to the correct backend after disassembly. */
 @Mixin(value = Contraption.class, remap = false)
-public abstract class TavernContraptionDisassemblyMixin {
+public abstract class ContraptionSeatDisassemblyMixin {
     @Inject(method = "addPassengersToWorld", at = @At("HEAD"), remap = false)
-    private void kaleidoscopeContraption$restoreTavernPassengers(
-            Level level, StructureTransform transform, List<Entity> seatedEntities, CallbackInfo ci) {
-        if (level.isClientSide) {
+    private void kaleidoscopeContraption$restoreSeatPassengers(
+            Level world, StructureTransform transform, List<Entity> seatedEntities, CallbackInfo ci) {
+        if (world.isClientSide) {
             return;
         }
 
@@ -41,18 +41,18 @@ public abstract class TavernContraptionDisassemblyMixin {
             }
 
             BlockState state = transform.apply(info.state());
-            if (!TavernSeatSupport.isTavernSeat(state)) {
+            if (!ContraptionSeatSupport.isSeat(state)) {
                 continue;
             }
             requests.add(new RestoreRequest(passenger, transform.apply(localPos), state));
         }
 
         for (RestoreRequest request : requests) {
-            TavernSeatSupport.restorePassenger(level, request.worldPos(), request.state(), request.passenger());
+            ContraptionSeatSupport.restorePassenger(
+                    world, request.worldPos(), request.state(), request.passenger());
         }
     }
 
     private record RestoreRequest(Entity passenger, BlockPos worldPos, BlockState state) {
     }
 }
-

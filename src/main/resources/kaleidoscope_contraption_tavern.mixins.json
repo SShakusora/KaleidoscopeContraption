@@ -5,11 +5,7 @@
   "compatibilityLevel": "JAVA_21",
   "refmap": "kaleidoscope_contraption.refmap.json",
   "plugin": "com.sshakusora.kaleidoscope_contraption.mixin.KCTavernMixinConfigPlugin",
-  "mixins": [
-    "tavern.TavernContraptionAssemblyMixin",
-    "tavern.TavernContraptionDisassemblyMixin",
-    "tavern.TavernContraptionSeatMixin"
-  ],
+  "mixins": [],
   "client": [
     "client.TavernTextBlockEntityRenderMixin"
   ],

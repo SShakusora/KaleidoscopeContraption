@@ -4,6 +4,7 @@ import com.github.ysbbbbbb.kaleidoscopecookery.init.ModBlocks;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.tag.TagMod;
 import com.simibubi.create.AllMountedStorageTypes;
 import com.simibubi.create.api.contraption.storage.item.MountedItemStorageType;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.CookerySeatBackend;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 
 /** Registration entry point for the optional Kaleidoscope Cookery integration. */
@@ -12,6 +13,7 @@ public final class KCCookeryCompat {
     }
 
     public static void register() {
+        CookerySeatBackend.registerDefaults();
         ContraptionInteractionUtil.registerAdditionalHeatSourcePredicate(
                 state -> state.is(TagMod.HEAT_SOURCE_BLOCKS_WITHOUT_LIT));
         // Bamboo trays expose a modifiable four-slot handler, so Create can mount

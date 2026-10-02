@@ -60,6 +60,25 @@ The mod also handles block attachment checks, multi-block structures, placement 
 
 ---
 
+## 🪑 Unified Contraption Seat API
+
+Addons can register Cookery- or Tavern-compatible entity-backed seats through one API. The backend selects the matching `SitEntity` implementation; the provider supplies only seat geometry.
+
+```java
+ContraptionSeatRegistry.register(
+        MyBlocks.HIGH_STOOL.get(),
+        ContraptionSeatBackends.TAVERN,
+        state -> 0.875
+);
+ContraptionSeatRegistry.registerStandardBehaviours(MyBlocks.HIGH_STOOL.get());
+```
+
+Blocks may also implement `ContraptionSeat` directly. Existing `CookeryContraptionSeat` and `CookeryContraptionSeatRegistry` calls remain supported as compatibility wrappers.
+
+Tavern-backed blocks must be included in the `kaleidoscope_tavern:sittable` block tag; Cookery-backed blocks must use Cookery's equivalent sittable tag so their static `SitEntity` is not discarded.
+
+---
+
 ## 📋 Requirements
 
 | Mod | Version | Required |
