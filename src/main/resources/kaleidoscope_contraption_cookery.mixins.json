@@ -6,8 +6,7 @@
   "refmap": "kaleidoscope_contraption.refmap.json",
   "plugin": "com.sshakusora.kaleidoscope_contraption.mixin.KCCookeryMixinConfigPlugin",
   "mixins": [
-    "accessor.FoodBiteBlockAccessor",
-    "cookery.EightImmortalsTableBlockMixin"
+    "accessor.FoodBiteBlockAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
