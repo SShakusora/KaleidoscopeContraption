@@ -2,6 +2,7 @@ package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 
 import com.github.ysbbbbbb.kaleidoscopecookery.block.drink.EmptyCupBlock;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.drink.TeacupBlock;
+import com.github.ysbbbbbb.kaleidoscopecookery.init.ModBlocks;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModItems;
 import com.github.ysbbbbbb.kaleidoscopecookery.init.ModParticles;
 import com.github.ysbbbbbb.kaleidoscopecookery.item.TeacupItem;
@@ -93,6 +94,24 @@ public class TeacupBlockMovingInteraction extends MovingInteractionBehaviour {
             return true;
         }
 
+        if (held.getItem() instanceof TeacupItem item
+                && item.getBlock() instanceof TeacupBlock teacup) {
+            int cups = state.getValue(EmptyCupBlock.CUP_COUNT);
+            if (cups >= teacup.getMaxCount()) {
+                return true;
+            }
+            if (!entity.level().isClientSide) {
+                BlockState newState = teacup.defaultBlockState()
+                        .setValue(teacup.getCupCountProperty(), cups + 1)
+                        .setValue(teacup.getTeaCountProperty(), 1)
+                        .setValue(TeacupBlock.FACING, state.getValue(EmptyCupBlock.FACING));
+                update(entity, pos, info, newState);
+                consume(player, held);
+                play(entity, pos, state.getSoundType().getPlaceSound());
+            }
+            return true;
+        }
+
         if (held.isEmpty()) {
             int cups = state.getValue(EmptyCupBlock.CUP_COUNT);
             if (!entity.level().isClientSide) {
@@ -149,6 +168,28 @@ public class TeacupBlockMovingInteraction extends MovingInteractionBehaviour {
                         .setValue(teacup.getTeaCountProperty(), tea + 1));
                 consume(player, held);
                 play(entity, pos, state.getSoundType().getPlaceSound());
+            }
+            return true;
+        }
+
+        // Filled cups can be picked up even when the player is holding another
+        // item; the cup is dropped from the moving block.
+        if (!held.isEmpty() && tea > 0) {
+            if (!entity.level().isClientSide) {
+                ContraptionInteractionUtil.popResource(entity, pos,
+                        new ItemStack(state.getBlock().asItem()));
+                if (cups == 1) {
+                    remove(entity, pos);
+                } else if (tea == 1) {
+                    update(entity, pos, info, ModBlocks.EMPTY_CUP.get().defaultBlockState()
+                            .setValue(EmptyCupBlock.CUP_COUNT, cups - 1)
+                            .setValue(EmptyCupBlock.FACING, state.getValue(TeacupBlock.FACING)));
+                } else {
+                    update(entity, pos, info, state
+                            .setValue(teacup.getTeaCountProperty(), tea - 1)
+                            .setValue(teacup.getCupCountProperty(), cups - 1));
+                }
+                play(entity, pos, state.getSoundType().getBreakSound());
             }
             return true;
         }

@@ -3,6 +3,7 @@ package com.sshakusora.kaleidoscope_contraption.content.behaviour.placement;
 import com.github.ysbbbbbb.kaleidoscopecookery.block.kitchen.ChoppingBoardBlock;
 import com.sshakusora.kaleidoscope_contraption.api.placement.*;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -26,7 +27,7 @@ public class TableChoppingBoardPlacementRule implements ContraptionPlacementRule
         nbt.putInt("MaxCutCount", 0);
         nbt.putInt("CurrentCutCount", 0);
         nbt.put("CurrentCutStack", ItemStack.EMPTY.serializeNBT());
-        nbt.put("ResultItem", ItemStack.EMPTY.serializeNBT());
+        nbt.put("ResultItem", new ListTag());
         nbt.putString("id", "kaleidoscope_cookery:chopping_board");
         return ContraptionPlacementResult.single(new StructureTemplate.StructureBlockInfo(
                 context.targetPos(), state, nbt));
