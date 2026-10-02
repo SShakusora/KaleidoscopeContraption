@@ -1,8 +1,8 @@
-package com.sshakusora.kaleidoscope_contraption.mixin.tavern;
+package com.sshakusora.kaleidoscope_contraption.mixin;
 
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.TavernSeatSupport;
+import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.ContraptionSeatSupport;
 import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -17,13 +17,13 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Keeps Tavern's original passenger height while using Create's seat mapping. */
+/** Routes generic seat interaction and passenger positioning through the unified API. */
 @Mixin(AbstractContraptionEntity.class)
-public abstract class TavernContraptionSeatMixin {
+public abstract class ContraptionSeatMixin {
     @Inject(method = "handlePlayerInteraction", at = @At("HEAD"), cancellable = true, remap = false)
-    private void kaleidoscopeContraption$handleTavernSeatRemoval(Player player, BlockPos localPos,
-                                                                  Direction side, InteractionHand interactionHand,
-                                                                  CallbackInfoReturnable<Boolean> cir) {
+    private void kaleidoscopeContraption$handleSeatRemoval(Player player, BlockPos localPos,
+                                                            Direction side, InteractionHand interactionHand,
+                                                            CallbackInfoReturnable<Boolean> cir) {
         if (interactionHand != InteractionHand.MAIN_HAND
                 || !KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
             return;
@@ -33,52 +33,47 @@ public abstract class TavernContraptionSeatMixin {
         if (contraptionEntity.getContraption() == null) {
             return;
         }
-
         StructureTemplate.StructureBlockInfo info =
                 contraptionEntity.getContraption().getBlocks().get(localPos);
-        if (info == null || !TavernSeatSupport.isTavernSeat(info.state())) {
+        if (info == null || !ContraptionSeatSupport.isSeat(info.state())) {
             return;
         }
 
         MovingInteractionBehaviour interaction = contraptionEntity.getContraption()
                 .getInteractors().get(localPos);
-        if (interaction == null) {
-            return;
+        if (interaction != null) {
+            cir.setReturnValue(interaction.handlePlayerInteraction(
+                    player, interactionHand, localPos, contraptionEntity));
         }
-
-        cir.setReturnValue(interaction.handlePlayerInteraction(
-                player, interactionHand, localPos, contraptionEntity));
     }
 
     @Inject(method = "positionRider", at = @At("HEAD"), cancellable = true)
-    private void kaleidoscopeContraption$positionTavernPassenger(Entity passenger,
-                                                                 Entity.MoveFunction callback,
-                                                                 CallbackInfo ci) {
+    private void kaleidoscopeContraption$positionSeatPassenger(Entity passenger,
+                                                                Entity.MoveFunction callback,
+                                                                CallbackInfo ci) {
         AbstractContraptionEntity contraptionEntity = (AbstractContraptionEntity) (Object) this;
         if (passenger.getVehicle() != contraptionEntity) {
             return;
         }
 
-        Vec3 position = TavernSeatSupport.getPassengerPosition(contraptionEntity, passenger, 1.0F);
+        Vec3 position = ContraptionSeatSupport.getPassengerPosition(contraptionEntity, passenger, 1.0F);
         if (position == null) {
             return;
         }
-
         callback.accept(passenger, position.x, position.y, position.z);
         ci.cancel();
     }
 
-    /** Also fixes the position Create stores when a passenger actively dismounts. */
     @Inject(method = "getPassengerPosition", at = @At("HEAD"), cancellable = true, remap = false)
-    private void kaleidoscopeContraption$getTavernPassengerPosition(Entity passenger,
-                                                                     float partialTicks,
-                                                                     CallbackInfoReturnable<Vec3> cir) {
+    private void kaleidoscopeContraption$getSeatPassengerPosition(Entity passenger, float partialTicks,
+                                                                   CallbackInfoReturnable<Vec3> cir) {
         AbstractContraptionEntity contraptionEntity = (AbstractContraptionEntity) (Object) this;
         if (contraptionEntity.getContraption() == null) {
             return;
         }
 
-        Vec3 position = TavernSeatSupport.getPassengerPosition(contraptionEntity, passenger, partialTicks);
+        Vec3 position = ContraptionSeatSupport.getPassengerPosition(
+                contraptionEntity, passenger, partialTicks);
         if (position != null) {
             cir.setReturnValue(position);
         }

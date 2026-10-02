@@ -1,254 +1,46 @@
 package com.sshakusora.kaleidoscope_contraption.content.behaviour.movement;
 
-import com.github.ysbbbbbb.kaleidoscopecookery.block.decoration.ChairBlock;
-import com.github.ysbbbbbb.kaleidoscopecookery.block.decoration.CookStoolBlock;
-import com.github.ysbbbbbb.kaleidoscopecookery.block.decoration.LongBenchBlock;
-import com.github.ysbbbbbb.kaleidoscopecookery.entity.SitEntity;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
-import com.simibubi.create.content.contraptions.Contraption;
-import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-import com.sshakusora.kaleidoscope_contraption.api.seat.CookeryContraptionSeat;
-import com.sshakusora.kaleidoscope_contraption.api.seat.CookeryContraptionSeatRegistry;
+import com.sshakusora.kaleidoscope_contraption.api.seat.ContraptionSeatBackends;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.Vec3;
-import org.apache.commons.lang3.tuple.MutablePair;
 
-import java.util.*;
-
-/** Shared seat geometry and lifecycle helpers for Cookery-compatible seats. */
+/** Backwards-compatible Cookery facade over the unified seat support. */
 public final class CookerySeatSupport {
-    private static final double CHAIR_SEAT_HEIGHT = 0.5125;
-    private static final double COOK_STOOL_SEAT_HEIGHT = 0.4375;
-    private static final double LONG_BENCH_SEAT_HEIGHT = 0.5;
-    private static final double COOKERY_SIT_ENTITY_OFFSET = -0.25;
-
-    private static final CookeryContraptionSeat CHAIR_PROVIDER = new CookeryContraptionSeat() {
-        @Override
-        public double getSeatHeight(BlockState state) {
-            return CHAIR_SEAT_HEIGHT;
-        }
-
-        @Override
-        public Direction getSeatFacing(BlockState state) {
-            return state.getValue(HorizontalDirectionalBlock.FACING);
-        }
-    };
-
-    private static final CookeryContraptionSeat COOK_STOOL_PROVIDER = new CookeryContraptionSeat() {
-        @Override
-        public double getSeatHeight(BlockState state) {
-            return COOK_STOOL_SEAT_HEIGHT;
-        }
-
-        @Override
-        public Direction getSeatFacing(BlockState state) {
-            return state.getValue(HorizontalDirectionalBlock.FACING);
-        }
-    };
-
-    private static final CookeryContraptionSeat LONG_BENCH_PROVIDER = new CookeryContraptionSeat() {
-        @Override
-        public double getSeatHeight(BlockState state) {
-            return LONG_BENCH_SEAT_HEIGHT;
-        }
-
-        @Override
-        public Direction getSeatFacing(BlockState state) {
-            return state.getValue(LongBenchBlock.AXIS) == Direction.Axis.X
-                    ? Direction.SOUTH : Direction.EAST;
-        }
-    };
-
     private CookerySeatSupport() {
     }
 
     public static boolean isCookerySeat(BlockState state) {
-        return getSeatProvider(state) != null;
+        return ContraptionSeatSupport.isSeat(state, ContraptionSeatBackends.COOKERY);
     }
 
     public static double getSeatHeight(BlockState state) {
-        CookeryContraptionSeat provider = requireSeatProvider(state);
-        return provider.getSeatHeight(state);
+        return ContraptionSeatSupport.getSeatHeight(state);
     }
 
-    /** Returns the position used by Cookery's static SitEntity, transformed into world space. */
     public static Vec3 getSeatEntityPosition(AbstractContraptionEntity contraptionEntity,
                                               BlockPos localPos, float partialTicks) {
-        if (contraptionEntity.getContraption() == null) {
-            return null;
-        }
-
-        StructureTemplate.StructureBlockInfo info =
-                contraptionEntity.getContraption().getBlocks().get(localPos);
-        if (info == null || !isCookerySeat(info.state())) {
-            return null;
-        }
-
-        Vec3 localCenter = Vec3.atCenterOf(localPos);
-        return contraptionEntity.toGlobalVector(
-                localCenter.add(0, getSeatHeight(info.state()) - 0.5, 0), partialTicks);
+        return ContraptionSeatSupport.getSeatEntityPosition(contraptionEntity, localPos, partialTicks);
     }
 
-    /** Matches the final passenger height produced by Cookery's SitEntity. */
     public static Vec3 getPassengerPosition(AbstractContraptionEntity contraptionEntity,
                                              Entity passenger, float partialTicks) {
-        if (contraptionEntity.getContraption() == null) {
-            return null;
-        }
-
-        BlockPos localPos = contraptionEntity.getContraption().getSeatOf(passenger.getUUID());
-        if (localPos == null) {
-            return null;
-        }
-
-        Vec3 seatEntityPosition = getSeatEntityPosition(contraptionEntity, localPos, partialTicks);
-        if (seatEntityPosition == null) {
-            return null;
-        }
-
-        return seatEntityPosition.add(0,
-                COOKERY_SIT_ENTITY_OFFSET + passenger.getMyRidingOffset(), 0);
+        return ContraptionSeatSupport.getPassengerPosition(contraptionEntity, passenger, partialTicks);
     }
 
-    /** Ejects occupants before a Cookery seat block is removed from a moving Contraption. */
     public static void ejectPassengers(AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
-        Contraption contraption = contraptionEntity.getContraption();
-        int seatIndex = contraption.getSeats().indexOf(localPos);
-        if (seatIndex < 0) {
-            return;
-        }
-
-        List<Entity> passengers = new ArrayList<>(contraptionEntity.getPassengers());
-        Map<UUID, Integer> seatMapping = contraption.getSeatMapping();
-        for (Entity passenger : passengers) {
-            if (!Integer.valueOf(seatIndex).equals(seatMapping.get(passenger.getUUID()))) {
-                continue;
-            }
-
-            Vec3 position = getPassengerPosition(contraptionEntity, passenger, 1.0F);
-            passenger.stopRiding();
-            seatMapping.remove(passenger.getUUID());
-            if (position != null) {
-                passenger.teleportTo(position.x, position.y, position.z);
-            }
-            passenger.getPersistentData().remove("ContraptionDismountLocation");
-        }
+        ContraptionSeatSupport.ejectPassengers(contraptionEntity, localPos);
     }
 
-    /** Removes a Cookery seat and keeps every remaining Create seat index valid. */
     public static void removeSeat(AbstractContraptionEntity contraptionEntity, BlockPos localPos) {
-        Contraption contraption = contraptionEntity.getContraption();
-        int removedIndex = contraption.getSeats().indexOf(localPos);
-        if (removedIndex < 0) {
-            return;
-        }
-
-        contraption.getSeats().remove(removedIndex);
-
-        Iterator<Map.Entry<UUID, Integer>> mappingIterator =
-                contraption.getSeatMapping().entrySet().iterator();
-        while (mappingIterator.hasNext()) {
-            Map.Entry<UUID, Integer> entry = mappingIterator.next();
-            Integer seatIndex = entry.getValue();
-            if (seatIndex == null || seatIndex == removedIndex) {
-                mappingIterator.remove();
-            } else if (seatIndex > removedIndex) {
-                entry.setValue(seatIndex - 1);
-            }
-        }
-
-        for (MutablePair<StructureTemplate.StructureBlockInfo, MovementContext> actor : contraption.getActors()) {
-            MovementContext context = actor.getRight();
-            if (context == null || !context.data.contains("SeatIndex")) {
-                continue;
-            }
-
-            int seatIndex = context.data.getInt("SeatIndex");
-            if (seatIndex == removedIndex) {
-                context.data.putInt("SeatIndex", -1);
-            } else if (seatIndex > removedIndex) {
-                context.data.putInt("SeatIndex", seatIndex - 1);
-            }
-        }
+        ContraptionSeatSupport.removeSeat(contraptionEntity, localPos);
     }
 
-    /** Restores one moving passenger to Cookery's normal static seat entity after disassembly. */
     public static boolean restorePassenger(Level level, BlockPos worldPos,
                                            BlockState state, Entity passenger) {
-        if (level.isClientSide || !isCookerySeat(state)) {
-            return false;
-        }
-
-        BlockState placedState = level.getBlockState(worldPos);
-        if (!isCookerySeat(placedState)) {
-            return false;
-        }
-        state = placedState;
-
-        SitEntity sitEntity = new SitEntity(level, worldPos, getSeatHeight(state));
-        Direction facing = getSeatFacing(state);
-        sitEntity.setYRot(facing.toYRot());
-
-        if (!level.addFreshEntity(sitEntity)) {
-            return false;
-        }
-
-        passenger.stopRiding();
-        if (!passenger.startRiding(sitEntity, true)) {
-            sitEntity.discard();
-            return false;
-        }
-
-        passenger.getPersistentData().remove("ContraptionDismountLocation");
-        return true;
-    }
-
-    private static Direction getSeatFacing(BlockState state) {
-        return requireSeatProvider(state).getSeatFacing(state);
-    }
-
-    private static CookeryContraptionSeat requireSeatProvider(BlockState state) {
-        CookeryContraptionSeat provider = getSeatProvider(state);
-        if (provider == null) {
-            throw new IllegalArgumentException("Not a Cookery seat: " + state);
-        }
-        return provider;
-    }
-
-    /**
-     * Resolves a seat provider in extension-first order while retaining
-     * compatibility with Cookery's built-in seat block classes.
-     */
-    private static CookeryContraptionSeat getSeatProvider(BlockState state) {
-        if (state == null) {
-            return null;
-        }
-
-        if (state.getBlock() instanceof CookeryContraptionSeat seat) {
-            return seat;
-        }
-
-        CookeryContraptionSeat registered =
-                CookeryContraptionSeatRegistry.get(state.getBlock());
-        if (registered != null) {
-            return registered;
-        }
-
-        if (state.getBlock() instanceof ChairBlock) {
-            return CHAIR_PROVIDER;
-        }
-        if (state.getBlock() instanceof CookStoolBlock) {
-            return COOK_STOOL_PROVIDER;
-        }
-        if (state.getBlock() instanceof LongBenchBlock) {
-            return LONG_BENCH_PROVIDER;
-        }
-        return null;
+        return ContraptionSeatSupport.restorePassenger(level, worldPos, state, passenger);
     }
 }

@@ -1,63 +1,36 @@
 package com.sshakusora.kaleidoscope_contraption.content.behaviour.interaction;
 
-import com.github.ysbbbbbb.kaleidoscopetavern.block.deco.BarStoolBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.deco.IConnectionBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.deco.SofaBlock;
 import com.github.ysbbbbbb.kaleidoscopetavern.block.properties.ConnectionType;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
-import com.simibubi.create.content.contraptions.actors.seat.SeatInteractionBehaviour;
-import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.TavernSeatSupport;
-import com.sshakusora.kaleidoscope_contraption.network.KCRemoveBlockHandler;
+import com.sshakusora.kaleidoscope_contraption.api.seat.ContraptionSeatBackends;
 import com.sshakusora.kaleidoscope_contraption.util.ContraptionInteractionUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.minecraftforge.items.ItemHandlerHelper;
 
 import java.util.HashSet;
 import java.util.Set;
 
 /** Preserves Tavern's own sitting behavior for moving sofas and bar stools. */
-public class TavernSeatMovingInteraction extends SeatInteractionBehaviour {
+public class TavernSeatMovingInteraction extends ContraptionSeatMovingInteraction {
+    public TavernSeatMovingInteraction() {
+        super(ContraptionSeatBackends.TAVERN);
+    }
+
     @Override
     public boolean handlePlayerInteraction(Player player, InteractionHand activeHand, BlockPos localPos,
                                            AbstractContraptionEntity contraptionEntity) {
-        if (activeHand != InteractionHand.MAIN_HAND
-                || !KCRemoveBlockHandler.isRemoveKeyPressed(player.getUUID())) {
-            return super.handlePlayerInteraction(player, activeHand, localPos, contraptionEntity);
+        boolean handled = super.handlePlayerInteraction(player, activeHand, localPos, contraptionEntity);
+        if (handled && !contraptionEntity.level().isClientSide) {
+            refreshSofaNeighbours(contraptionEntity, localPos);
         }
-
-        StructureTemplate.StructureBlockInfo info = contraptionEntity.getContraption().getBlocks().get(localPos);
-        if (info == null || !(info.state().getBlock() instanceof SofaBlock)
-                && !(info.state().getBlock() instanceof BarStoolBlock)) {
-            return false;
-        }
-        removeSeat(player, localPos, contraptionEntity, info);
-        return true;
-    }
-
-    private void removeSeat(Player player, BlockPos localPos,
-                            AbstractContraptionEntity contraptionEntity,
-                            StructureTemplate.StructureBlockInfo info) {
-        if (contraptionEntity.level().isClientSide) {
-            return;
-        }
-        TavernSeatSupport.ejectPassengers(contraptionEntity, localPos);
-        if (!player.isCreative()) {
-            ItemHandlerHelper.giveItemToPlayer(player,
-                    new ItemStack(info.state().getBlock().asItem()));
-        }
-        ContraptionInteractionUtil.removeBlockFromContraption(contraptionEntity, localPos);
-        refreshSofaNeighbours(contraptionEntity, localPos);
-        var updatedBounds = ContraptionInteractionUtil.recalculateBounds(contraptionEntity);
-        contraptionEntity.getContraption().invalidateColliders();
-        ContraptionInteractionUtil.syncBlockRemoval(contraptionEntity, localPos, updatedBounds);
-        ContraptionInteractionUtil.playBreakSound(contraptionEntity, localPos, info.state());
+        return handled;
     }
 
     private void refreshSofaNeighbours(AbstractContraptionEntity contraptionEntity, BlockPos removedPos) {

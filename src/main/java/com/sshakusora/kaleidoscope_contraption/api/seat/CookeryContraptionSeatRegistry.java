@@ -2,8 +2,6 @@ package com.sshakusora.kaleidoscope_contraption.api.seat;
 
 import net.minecraft.world.level.block.Block;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -15,8 +13,6 @@ import java.util.Objects;
  * entries in this registry.</p>
  */
 public final class CookeryContraptionSeatRegistry {
-    private static final Map<Block, CookeryContraptionSeat> PROVIDERS = new HashMap<>();
-
     private CookeryContraptionSeatRegistry() {
     }
 
@@ -29,23 +25,24 @@ public final class CookeryContraptionSeatRegistry {
     public static synchronized void register(Block block, CookeryContraptionSeat provider) {
         Objects.requireNonNull(block, "block");
         Objects.requireNonNull(provider, "provider");
-        if (PROVIDERS.containsKey(block)) {
-            throw new IllegalArgumentException("Duplicate Cookery contraption seat provider for block: " + block);
-        }
-        PROVIDERS.put(block, provider);
+        ContraptionSeatRegistry.register(block, ContraptionSeatBackends.COOKERY, provider);
     }
 
     /**
      * Removes a provider, primarily for integration teardown and tests.
      */
     public static synchronized boolean unregister(Block block) {
-        return PROVIDERS.remove(Objects.requireNonNull(block, "block")) != null;
+        return ContraptionSeatRegistry.unregister(Objects.requireNonNull(block, "block"));
     }
 
     /**
      * Returns the provider registered for the exact block instance, if any.
      */
     public static synchronized CookeryContraptionSeat get(Block block) {
-        return PROVIDERS.get(block);
+        ContraptionSeatDefinition definition = ContraptionSeatRegistry.getRegistered(block);
+        if (definition == null || !ContraptionSeatBackends.COOKERY.equals(definition.backend())) {
+            return null;
+        }
+        return definition.provider() instanceof CookeryContraptionSeat provider ? provider : null;
     }
 }

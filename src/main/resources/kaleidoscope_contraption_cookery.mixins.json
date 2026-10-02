@@ -8,10 +8,6 @@
   "mixins": [
     "accessor.FoodBiteBlockAccessor",
     "cookery.BambooTrayBlockEntityCapabilityMixin",
-    "cookery.CookeryContraptionAssemblyMixin",
-    "cookery.CookeryContraptionDisassemblyMixin",
-    "cookery.CookeryContraptionSeatMixin",
-    "cookery.EightImmortalsTableBlockMixin",
     "cookery.TeapotBlockEntityCapabilityMixin"
   ],
   "injectors": {
