@@ -44,6 +44,7 @@ public class ContraptionDataUtil {
 
         // 更新blocks
         context.contraption.getBlocks().put(context.localPos, newInfo);
+        ContraptionInteractionUtil.invalidateCachedColliders(context.contraption);
         context.contraption.getIsLegacy().removeBoolean(context.localPos);
 
         // 更新updateTags

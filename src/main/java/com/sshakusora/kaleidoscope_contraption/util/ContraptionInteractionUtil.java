@@ -4,10 +4,12 @@ import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
+import com.simibubi.create.content.contraptions.TranslatingContraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.sshakusora.kaleidoscope_contraption.api.placement.ContraptionPlacementRegistry;
 import com.sshakusora.kaleidoscope_contraption.content.behaviour.movement.BlockRemovalAwareMovementBehaviour;
 import com.sshakusora.kaleidoscope_contraption.mixin.accessor.ContraptionAccessor;
+import com.sshakusora.kaleidoscope_contraption.mixin.accessor.TranslatingContraptionAccessor;
 import com.sshakusora.kaleidoscope_contraption.network.KCContraptionChangedPacket;
 import com.sshakusora.kaleidoscope_contraption.network.KCPacketHandler;
 import net.minecraft.core.BlockPos;
@@ -43,6 +45,20 @@ public class ContraptionInteractionUtil {
             return state.getValue(BlockStateProperties.LIT);
         }
         return additionalHeatSourcePredicate.test(state);
+    }
+
+    /**
+     * Clears Create's terrain-collision position cache after changing a translating contraption.
+     * Create's base Contraption.invalidateColliders() does not clear this TranslatingContraption
+     * cache, so removing a block could leave a stale position whose StructureBlockInfo is null.
+     */
+    public static void invalidateCachedColliders(Contraption contraption) {
+        if (contraption instanceof TranslatingContraption translatingContraption) {
+            TranslatingContraptionAccessor accessor =
+                    (TranslatingContraptionAccessor) translatingContraption;
+            accessor.setCachedColliders(null);
+            accessor.setCachedColliderDirection(null);
+        }
     }
 
 
@@ -120,6 +136,7 @@ public class ContraptionInteractionUtil {
         }
 
         contraption.getBlocks().put(localPos, newInfo);
+        invalidateCachedColliders(contraption);
         contraption.getIsLegacy().removeBoolean(localPos);
 
         var updateTags = ((ContraptionAccessor) contraption).getUpdateTags();
@@ -178,6 +195,7 @@ public class ContraptionInteractionUtil {
 
         // 从blocks中移除
         contraption.getBlocks().remove(localPos);
+        invalidateCachedColliders(contraption);
 
         // 从interactors中移除
         contraption.getInteractors().remove(localPos);
